@@ -1,0 +1,420 @@
+/* ============================================
+   EME's Apartelle - Premium Design System (Refined)
+   ============================================ */
+
+:root {
+    /* Primary Colors - Richer Gold */
+    --primary-gold: #BC9151;
+    /* Slightly more muted/elegant gold */
+    --primary-gold-dark: #9A7640;
+    --primary-gold-light: #DFC79E;
+    --primary-gold-subtle: rgba(188, 145, 81, 0.1);
+
+    /* Secondary Colors - Deep Navy */
+    --secondary-dark: #1A2634;
+    /* Deeper navy */
+    --secondary-darker: #111827;
+
+    /* Neutral Colors - Warm Grays */
+    --text-dark: #2C2C2C;
+    --text-muted: #666666;
+    --text-light: #F8F9FA;
+    --text-lighter: #E5E7EB;
+
+    /* Backgrounds */
+    --bg-cream: #FDFBF7;
+    /* Warmer cream */
+    --bg-white: #FFFFFF;
+    --bg-light: #F8F9FA;
+    --bg-surface: #FFFFFF;
+
+    /* Typography */
+    --font-serif: 'Playfair Display', serif;
+    --font-sans: 'Inter', sans-serif;
+
+    /* Premium Shadows (Layered for depth) */
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.02), 0 1px 2px rgba(0, 0, 0, 0.03);
+    --shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.04), 0 2px 4px -2px rgba(0, 0, 0, 0.03);
+    --shadow-lg: 0 12px 20px -6px rgba(0, 0, 0, 0.06), 0 6px 12px -4px rgba(0, 0, 0, 0.04);
+    --shadow-xl: 0 24px 48px -12px rgba(45, 62, 80, 0.12), 0 10px 20px -8px rgba(0, 0, 0, 0.05);
+
+    /* Border Radius */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+    --radius-full: 9999px;
+
+    /* Transitions */
+    --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-normal: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow: 500ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ============================================
+   Base Styles
+   ============================================ */
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-sans);
+    color: var(--text-dark);
+    background-color: var(--bg-cream);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============================================
+   Typography
+   ============================================ */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.serif-font,
+.font-serif {
+    font-family: var(--font-serif);
+    font-weight: 700;
+    color: var(--secondary-dark);
+    line-height: 1.2;
+}
+
+.display-1,
+.display-2,
+.display-3,
+.display-4,
+.display-5 {
+    font-family: var(--font-serif);
+    font-weight: 700;
+}
+
+.text-primary-gold {
+    color: var(--primary-gold) !important;
+}
+
+.text-gold-italic {
+    color: var(--primary-gold);
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-weight: 400;
+}
+
+.section-label {
+    color: var(--primary-gold);
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    font-weight: 700;
+    font-size: 0.75rem;
+    margin-bottom: 1rem;
+    display: block;
+}
+
+.section-title {
+    color: var(--secondary-dark);
+    margin-bottom: 1rem;
+}
+
+.section-description {
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+/* ============================================
+   Buttons & Interactions
+   ============================================ */
+
+.btn {
+    border-radius: var(--radius-full);
+    /* Soft pill shape */
+    padding: 0.75rem 2rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    transition: all var(--transition-normal);
+}
+
+.btn-gold {
+    background: var(--primary-gold);
+    border: 1px solid var(--primary-gold);
+    color: white;
+    box-shadow: 0 4px 15px rgba(188, 145, 81, 0.3);
+}
+
+.btn-gold:hover {
+    background: var(--primary-gold-dark);
+    border-color: var(--primary-gold-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(188, 145, 81, 0.4);
+    color: white;
+}
+
+.btn-outline-dark-custom {
+    background: transparent;
+    border: 2px solid var(--secondary-dark);
+    color: var(--secondary-dark);
+}
+
+.btn-outline-dark-custom:hover {
+    background: var(--secondary-dark);
+    color: white;
+    border-color: var(--secondary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(26, 38, 52, 0.2);
+}
+
+/* ============================================
+   Cards & Surfaces
+   ============================================ */
+
+.card-hover {
+    transition: all var(--transition-normal);
+    border: 1px solid rgba(0, 0, 0, 0.03);
+}
+
+.card-hover:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-xl);
+    border-color: transparent;
+}
+
+.glass-panel {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: var(--shadow-lg);
+}
+
+/* ============================================
+   Forms & Inputs
+   ============================================ */
+
+.form-control-custom,
+.form-select-custom {
+    background-color: var(--bg-light);
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    padding: 1rem 1.25rem;
+    font-size: 1rem;
+    color: var(--text-dark);
+    transition: all var(--transition-normal);
+}
+
+.form-control-custom:focus,
+.form-select-custom:focus {
+    background-color: white;
+    border-color: var(--primary-gold);
+    box-shadow: 0 0 0 4px var(--primary-gold-subtle);
+    outline: none;
+}
+
+.form-label-custom {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+    padding-left: 0.25rem;
+}
+
+/* ============================================
+   Animations
+   ============================================ */
+/* Custom SweetAlert Premium Styling */
+.premium-swal-popup {
+    font-family: var(--font-sans) !important;
+    border-top: 4px solid var(--primary-gold) !important;
+}
+
+.premium-swal-popup .swal2-title {
+    font-family: var(--font-serif) !important;
+    color: var(--secondary-dark) !important;
+}
+
+.premium-swal-actions .btn {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.premium-swal-actions .btn-gold:hover {
+    background-color: var(--primary-gold-dark) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(188, 145, 81, 0.3);
+}
+
+.animate-fade-up {
+    animation: fadeUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    opacity: 0;
+}
+
+@keyframes fadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(40px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Stagger delays */
+.delay-1 {
+    animation-delay: 100ms;
+}
+
+.delay-2 {
+    animation-delay: 200ms;
+}
+
+.delay-3 {
+    animation-delay: 300ms;
+}
+
+/* ============================================
+   Utilities
+   ============================================ */
+
+.bg-cream {
+    background-color: var(--bg-cream) !important;
+}
+
+.bg-dark-blue {
+    background-color: var(--secondary-dark) !important;
+}
+
+.text-gold {
+    color: var(--primary-gold);
+}
+
+.icon-box-gold {
+    background: var(--primary-gold-subtle);
+    color: var(--primary-gold);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-md);
+    transition: all var(--transition-normal);
+}
+
+.hover-lift {
+    transition: transform var(--transition-normal);
+}
+
+.hover-lift:hover {
+    transform: translateY(-4px);
+}
+
+/* ============================================
+   Modern UI Additions (v2.0)
+   ============================================ */
+
+.text-gold {
+    color: var(--primary-gold) !important;
+}
+
+.bg-gold-subtle {
+    background-color: var(--primary-gold-subtle) !important;
+}
+
+.bg-gold {
+    background-color: var(--primary-gold) !important;
+}
+
+.bg-premium-dark {
+    background-color: var(--secondary-dark) !important;
+}
+
+.tracking-widest {
+    letter-spacing: 0.2em !important;
+}
+
+.tracking-wider {
+    letter-spacing: 0.1em !important;
+}
+
+/* Smooth Transitions for Router Links */
+.router-link-active {
+    color: var(--primary-gold) !important;
+}
+
+/* Glassmorphism Utilities */
+.glass-effect {
+    background: rgba(255, 255, 255, 0.8) !important;
+    backdrop-filter: blur(8px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.4) !important;
+}
+
+/* Premium Button Overrides */
+.btn-gold-modern {
+    background: var(--primary-gold);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    padding: 0.875rem 1.5rem;
+    font-weight: 700;
+    transition: all var(--transition-normal);
+}
+
+.btn-gold-modern:hover {
+    background: var(--primary-gold-dark);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+/* Form Polish */
+input::placeholder {
+    color: #94a3b8;
+    opacity: 0.7;
+}
+
+/* Scrollbar Refinement */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-cream);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--primary-gold-light);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-gold);
+}
+
+/* Extra Utility Classes used in Views */
+.bg-white-glass {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.hover-opacity:hover {
+    opacity: 0.75;
+    transition: opacity 0.3s ease;
+}
+
+.text-shadow-sm {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.admin-view-content {
+    padding: 1.5rem;
+    /* Equivalent to p-4 */
+    flex: 1;
+    overflow-y: auto;
+    height: 100%;
+}

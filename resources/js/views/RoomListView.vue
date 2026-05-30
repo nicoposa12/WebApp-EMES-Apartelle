@@ -57,9 +57,9 @@ const getRoomImage = (room) => {
     
     // Fallback based on type keywords
     const type = room.room_type.toLowerCase();
-    if (type.includes('suite')) return 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=800&q=80';
-    if (type.includes('deluxe')) return 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=800&q=80';
-    return 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=800&q=80';
+    if (type.includes('suite')) return '/images/unsplash/suite-room.jpg';
+    if (type.includes('deluxe')) return '/images/unsplash/deluxe-room.jpg';
+    return '/images/unsplash/standard-room.jpg';
 };
 
 onMounted(fetchRooms);
@@ -97,12 +97,32 @@ onMounted(fetchRooms);
           </button>
         </div>
 
-        <!-- Loading State -->
-        <div v-if="loading" class="loading-state glass-panel py-7 rounded-5 d-flex flex-column align-items-center justify-content-center text-center">
-          <div class="spinner-border text-gold mb-3" style="width: 3rem; height: 3rem;" role="status">
-            <span class="visually-hidden">Loading...</span>
+        <!-- Skeleton Loading State -->
+        <div v-if="loading" class="row g-4 g-lg-5">
+          <div v-for="n in 6" :key="'skel-' + n" class="col-lg-4 col-md-6">
+            <div class="room-card skeleton-card border-0">
+              <div class="skeleton-image skeleton-shimmer"></div>
+              <div class="room-card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <div class="skeleton-line skeleton-shimmer" style="width: 60%; height: 10px;"></div>
+                  <div class="skeleton-line skeleton-shimmer" style="width: 25%; height: 10px;"></div>
+                </div>
+                <div class="skeleton-line skeleton-shimmer mb-3" style="width: 55%; height: 18px;"></div>
+                <div class="d-flex align-items-baseline gap-2 mb-3">
+                  <div class="skeleton-line skeleton-shimmer" style="width: 15%; height: 14px;"></div>
+                  <div class="skeleton-line skeleton-shimmer" style="width: 30%; height: 22px;"></div>
+                  <div class="skeleton-line skeleton-shimmer" style="width: 20%; height: 10px;"></div>
+                </div>
+                <div class="d-flex gap-2 mb-3">
+                  <div class="skeleton-pill skeleton-shimmer"></div>
+                  <div class="skeleton-pill skeleton-shimmer"></div>
+                </div>
+                <div class="skeleton-line skeleton-shimmer mb-2" style="width: 100%; height: 10px;"></div>
+                <div class="skeleton-line skeleton-shimmer mb-4" style="width: 75%; height: 10px;"></div>
+                <div class="skeleton-btn skeleton-shimmer"></div>
+              </div>
+            </div>
           </div>
-          <p class="text-muted fw-bold tracking-widest small text-uppercase mb-0">Loading rooms...</p>
         </div>
 
         <!-- Error State -->
@@ -151,7 +171,7 @@ onMounted(fetchRooms);
           >
             <div class="room-card card-hover shadow-gold-sm border-0">
               <div class="room-card-image">
-                <img :src="getRoomImage(room)" :alt="room.room_type">
+                <img :src="getRoomImage(room)" :alt="room.room_type" loading="lazy">
                 <div class="room-overlay"></div>
                 <span class="room-badge" :class="getStatusBadge(room.status).class">
                   <i :class="getStatusBadge(room.status).icon" class="me-1"></i>
@@ -236,7 +256,7 @@ onMounted(fetchRooms);
 
 /* Page Header */
 .page-header {
-  background: url('https://images.unsplash.com/photo-1578683010236-d716f9a3f461?auto=format&fit=crop&w=1920&q=80') center/cover no-repeat;
+  background: url('/images/unsplash/room-interior.jpg') center/cover no-repeat;
   position: relative;
   padding: 12rem 0 10rem; /* Increased for navbar offset + breathing room */
   background-attachment: fixed;
@@ -491,5 +511,59 @@ onMounted(fetchRooms);
   .py-7 { padding-top: 5rem; padding-bottom: 5rem; }
   .mb-7 { margin-bottom: 4rem; }
   .filter-tab { padding: 0.8rem 1.5rem; font-size: 0.7rem; }
+}
+
+/* ========== SKELETON LOADING ========== */
+.skeleton-card {
+  background: white;
+  border-radius: 32px;
+  overflow: hidden;
+}
+
+.skeleton-image {
+  height: 220px;
+  background: #e2e8f0;
+}
+
+.skeleton-line {
+  background: #e2e8f0;
+  border-radius: 8px;
+}
+
+.skeleton-pill {
+  width: 90px;
+  height: 30px;
+  background: #e2e8f0;
+  border-radius: 14px;
+}
+
+.skeleton-btn {
+  width: 100%;
+  height: 42px;
+  background: #e2e8f0;
+  border-radius: 50px;
+}
+
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.5) 50%,
+    transparent 100%
+  );
+  animation: shimmer-sweep 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer-sweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 </style>

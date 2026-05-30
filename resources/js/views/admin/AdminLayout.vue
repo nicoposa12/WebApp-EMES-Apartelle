@@ -13,7 +13,7 @@
         </div>
         <div v-if="!collapsed" class="logo-text animate-fade-in">
           <h6 class="mb-0 fw-bold serif-font text-white" style="letter-spacing: 0.5px; white-space: nowrap;">EME's Apartelle</h6>
-          <small class="text-white-50 text-uppercase letter-spacing-wide" style="font-size: 0.65rem; white-space: nowrap;">Administrator</small>
+          <small class="text-white-50 text-uppercase letter-spacing-wide" style="font-size: 0.65rem; white-space: nowrap;">{{ state.user?.role === 'admin' ? 'Administrator' : 'Staff' }}</small>
         </div>
       </div>
 
@@ -103,7 +103,7 @@
                        class="notif-item p-3 d-flex align-items-start gap-3 cursor-pointer transition-all position-relative" 
                        :class="{ 'unread': !notification.read_at }">
                     <div class="notif-icon-box rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 shadow-sm" 
-                         :class="notification.read_at ? 'bg-light text-muted' : 'bg-gold-glass text-gold'">
+                         :class="[getNotificationColorClass(notification), { 'opacity-75': notification.read_at }]">
                       <i :class="notification.data.icon || 'bi-bell'" style="font-size: 1.1rem;"></i>
                     </div>
                     <div class="overflow-hidden flex-grow-1">
@@ -145,13 +145,13 @@
               </div>
               <div class="admin-info d-none d-md-block text-start">
                 <h6 class="mb-0 fw-bold small text-secondary-dark">{{ state.user?.name }}</h6>
-                <small class="text-muted" style="font-size: 0.65rem;">Administrator</small>
+                <small class="text-muted" style="font-size: 0.65rem;">{{ state.user?.role === 'admin' ? 'Administrator' : 'Staff' }}</small>
               </div>
             </button>
             <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 mt-3 p-2 rounded-4 animate-fade-up">
-              <li><h6 class="dropdown-header small text-uppercase tracking-wider text-muted py-2">System Admin</h6></li>
+              <li><h6 class="dropdown-header small text-uppercase tracking-wider text-muted py-2">{{ state.user?.role === 'admin' ? 'System Admin' : 'Staff Portal' }}</h6></li>
               <li><router-link class="dropdown-item rounded-3 py-2 small fw-bold" to="/profile"><i class="bi bi-person me-2 text-gold"></i> My Profile</router-link></li>
-              <li><router-link class="dropdown-item rounded-3 py-2 small fw-bold" to="/admin/settings"><i class="bi bi-gear me-2 text-gold"></i> Settings</router-link></li>
+              <li v-if="state.user?.role === 'admin'"><router-link class="dropdown-item rounded-3 py-2 small fw-bold" to="/admin/settings"><i class="bi bi-gear me-2 text-gold"></i> Settings</router-link></li>
               <li><hr class="dropdown-divider bg-light my-2"></li>
               <li><button @click="handleLogout" class="dropdown-item rounded-3 py-2 small fw-bold text-danger"><i class="bi bi-box-arrow-right me-2"></i> Sign Out</button></li>
             </ul>
@@ -190,11 +190,78 @@ let unreadPollingInterval = null;
 const prevChatbotCount = ref(0);
 const notifications = ref([]);
 const unreadNotificationCount = ref(0);
+const lastSeenNotificationId = ref(null);
+
+const triggerNewReservationAlert = (notif) => {
+    Swal.fire({
+        title: 'New Room Reservation!',
+        text: notif.data.message,
+        icon: 'success',
+        iconColor: '#BC9151',
+        showCancelButton: true,
+        confirmButtonColor: '#BC9151',
+        cancelButtonColor: '#718096',
+        confirmButtonText: 'View Reservations',
+        cancelButtonText: 'Later',
+        background: '#fcfaf7',
+    }).then((result) => {
+        if (result.isConfirmed) {
+            if (notif.data && notif.data.reservation_id) {
+                router.push({ path: '/admin/reservations', query: { id: notif.data.reservation_id } });
+            } else {
+                router.push('/admin/reservations');
+            }
+        }
+    });
+};
+
+const triggerNewDisputeAlert = (notif) => {
+    Swal.fire({
+        title: 'New Dispute Filed!',
+        text: notif.data.message,
+        icon: 'warning',
+        iconColor: '#BC9151',
+        showCancelButton: true,
+        confirmButtonColor: '#BC9151',
+        cancelButtonColor: '#718096',
+        confirmButtonText: 'Investigate Now',
+        cancelButtonText: 'Later',
+        background: '#fcfaf7',
+    }).then((result) => {
+        if (result.isConfirmed) {
+            router.push('/admin/disputes');
+        }
+    });
+};
 
 const fetchNotifications = async () => {
     try {
         const response = await axios.get('/api/notifications');
-        notifications.value = response.data.notifications;
+        const newNotifications = response.data.notifications;
+        
+        // Detect new reservation or dispute notification
+        if (newNotifications.length > 0) {
+            const latest = newNotifications[0];
+            if (latest.id !== lastSeenNotificationId.value) {
+                // If it's a reservation type or title contains "New Reservation"
+                if (latest.data.type === 'reservation' || latest.data.title.includes('New Reservation')) {
+                    // Only alert if we've already initialized (not on first load)
+                    if (lastSeenNotificationId.value !== null) {
+                        triggerNewReservationAlert(latest);
+                    }
+                } else if (latest.data.type === 'dispute' || latest.data.title.includes('Dispute')) {
+                    // Only alert if we've already initialized (not on first load)
+                    if (lastSeenNotificationId.value !== null) {
+                        triggerNewDisputeAlert(latest);
+                    }
+                }
+                lastSeenNotificationId.value = latest.id;
+            }
+        } else {
+             lastSeenNotificationId.value = 'none';
+        }
+        
+        notifications.value = newNotifications;
         unreadNotificationCount.value = response.data.unread_count;
     } catch (err) {
         console.error('Failed to fetch notifications', err);
@@ -227,7 +294,11 @@ const handleNotificationClick = async (notif) => {
 
     // Redirect if there's an action_url
     if (notif.data && notif.data.action_url) {
-        router.push(notif.data.action_url);
+        if (notif.data.type === 'reservation' && notif.data.reservation_id) {
+            router.push({ path: '/admin/reservations', query: { id: notif.data.reservation_id } });
+        } else {
+            router.push(notif.data.action_url);
+        }
     }
 };
 
@@ -250,6 +321,30 @@ const formatTimeAgo = (dateStr) => {
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
     return `${Math.floor(diffInSeconds / 86400)}d ago`;
+};
+
+const getNotificationColorClass = (notif) => {
+    const type = notif.data?.type;
+    switch (type) {
+        case 'booking_confirmed':
+        case 'account_restored':
+            return 'notif-theme-confirmed';
+        case 'booking_cancelled':
+        case 'cancellation_request':
+        case 'cancellation_rejected':
+            return 'notif-theme-cancelled';
+        case 'dispute':
+        case 'dispute_update':
+            return 'notif-theme-dispute';
+        case 'new_message':
+            return 'notif-theme-message';
+        case 'account_suspended':
+            return 'notif-theme-account';
+        case 'new_booking':
+        case 'booking_created':
+        default:
+            return 'notif-theme-booking';
+    }
 };
 
 const fetchUnreadCount = async () => {
@@ -296,16 +391,25 @@ onUnmounted(() => {
   if (unreadPollingInterval) clearInterval(unreadPollingInterval);
 });
 
-const menuItems = [
-  { name: 'Dashboard', path: '/admin', icon: 'bi-grid-fill' },
-  { name: 'Reservations', path: '/admin/reservations', icon: 'bi-calendar-date' },
-  { name: 'Rooms', path: '/admin/rooms', icon: 'bi-door-closed' },
-  { name: 'Amenities', path: '/admin/amenities', icon: 'bi-stars' },
-  { name: 'Guests', path: '/admin/guests', icon: 'bi-people' },
-  { name: 'Messages', path: '/admin/messages', icon: 'bi-chat-dots' },
-  { name: 'Chatbot', path: '/admin/chatbot', icon: 'bi-robot' },
-  { name: 'Payments', path: '/admin/payments', icon: 'bi-credit-card' },
-];
+const menuItems = computed(() => {
+  const allItems = [
+    { name: 'Dashboard', path: '/admin', icon: 'bi-grid-fill' },
+    { name: 'Reservations', path: '/admin/reservations', icon: 'bi-calendar-date' },
+    { name: 'Rooms', path: '/admin/rooms', icon: 'bi-door-closed' },
+    { name: 'Amenities', path: '/admin/amenities', icon: 'bi-stars' },
+    { name: 'Guests', path: '/admin/guests', icon: 'bi-people' },
+    { name: 'Messages', path: '/admin/messages', icon: 'bi-chat-dots' },
+    { name: 'Chatbot', path: '/admin/chatbot', icon: 'bi-robot' },
+    { name: 'Payments', path: '/admin/payments', icon: 'bi-credit-card' },
+    { name: 'Disputes', path: '/admin/disputes', icon: 'bi-exclamation-triangle' },
+    { name: 'Reports', path: '/admin/reports', icon: 'bi-bar-chart-line-fill' },
+  ];
+  
+  if (state.user?.role === 'staff') {
+    return allItems.filter(item => ['Dashboard', 'Reservations', 'Payments', 'Disputes'].includes(item.name));
+  }
+  return allItems;
+});
 
 const formatIconClass = (icon) => {
   if (!icon) return '';
@@ -313,7 +417,7 @@ const formatIconClass = (icon) => {
 };
 
 const currentRouteName = computed(() => {
-  const current = menuItems.find(item => item.path === route.path);
+  const current = menuItems.value.find(item => item.path === route.path);
   return current ? current.name : 'Dashboard';
 });
 
@@ -323,7 +427,7 @@ const handleLogout = async () => {
         text: "Are you sure you want to end your admin session?",
         icon: 'question',
         showCancelButton: true,
-        confirmButtonColor: '#BC9151',
+        confirmButtonColor: '#dc3545',
         cancelButtonColor: '#718096',
         confirmButtonText: 'Yes, Sign Out',
         cancelButtonText: 'Cancel',

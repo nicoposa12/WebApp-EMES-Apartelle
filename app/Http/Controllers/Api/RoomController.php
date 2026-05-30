@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Room;
+use App\Models\Reservation;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
@@ -11,14 +14,60 @@ use Illuminate\Support\Facades\Storage;
 class RoomController extends Controller
 {
     /**
+     * Get booked date ranges for a specific room.
+     */
+    public function roomBookedDates($id)
+    {
+        $dates = Reservation::where('room_id', $id)
+            ->whereIn('status', ['pending', 'confirmed', 'checked-in'])
+            ->where('check_out', '>=', now())
+            ->get(['check_in', 'check_out']);
+
+        return response()->json($dates);
+    }
+
+    /**
+     * Get dates where no rooms are available.
+     */
+    /**
+     * Get dates where no rooms are available.
+     * Cached for 2 minutes to reduce query load.
+     */
+    public function allBookedDates()
+    {
+        $reservations = Cache::remember('all_booked_dates', 120, function () {
+            return Reservation::whereIn('status', ['pending', 'confirmed', 'checked-in'])
+                ->where('check_out', '>=', now())
+                ->get(['room_id', 'check_in', 'check_out']);
+        });
+
+        return response()->json($reservations);
+    }
+
+    /**
      * Display a listing of the resource.
+     */
+    /**
+     * Display a listing of the resource.
+     * Public requests without date filters are cached for 5 minutes.
      */
     public function index(Request $request)
     {
+        $hasDateFilter = $request->has(['check_in', 'check_out']);
+        $isAdminOrStaff = $request->user() && in_array($request->user()->role, ['admin', 'staff']);
+
+        // Cache public room listings (no date filter, no admin view)
+        if (!$hasDateFilter && !$isAdminOrStaff) {
+            $rooms = Cache::remember('rooms_public_list', 300, function () {
+                return Room::with(['amenities', 'images'])->get();
+            });
+            return response()->json($rooms);
+        }
+
         $query = Room::with(['amenities', 'images']);
 
         // Optional date-based availability filtering
-        if ($request->has(['check_in', 'check_out'])) {
+        if ($hasDateFilter) {
             $checkIn = \Carbon\Carbon::parse($request->check_in);
             $checkOut = \Carbon\Carbon::parse($request->check_out);
 
@@ -34,11 +83,11 @@ class RoomController extends Controller
 
         $rooms = $query->get();
 
-        // Add dynamic occupancy status for Admin view
-        if ($request->user() && $request->user()->role === 'admin') {
+        // Add dynamic occupancy status for Admin & Staff view
+        if ($isAdminOrStaff) {
             $today = \Carbon\Carbon::today();
             foreach ($rooms as $room) {
-                $currentRes = \App\Models\Reservation::where('room_id', $room->id)
+                $currentRes = Reservation::where('room_id', $room->id)
                     ->whereIn('status', ['confirmed', 'checked-in'])
                     ->where('check_in', '<=', $today)
                     ->where('check_out', '>', $today)
@@ -106,20 +155,29 @@ class RoomController extends Controller
             $room->amenities()->sync($amenities);
         }
 
+        // Invalidate room-related caches after creation
+        $this->clearRoomCaches();
+
         return response()->json($room->load(['amenities', 'images']), 201);
     }
 
     /**
      * Display the specified resource.
      */
+    /**
+     * Display the specified resource.
+     * Cached per room for 5 minutes.
+     */
     public function show(string $id)
     {
-        $room = Room::with(['amenities', 'images', 'reservations' => function($q) {
-            $q->whereIn('status', ['pending', 'confirmed', 'checked-in'])
-              ->where('check_out', '>=', now())
-              ->orderBy('check_in', 'asc')
-              ->select('id', 'room_id', 'check_in', 'check_out', 'status');
-        }])->find($id);
+        $room = Cache::remember("room_detail_{$id}", 300, function () use ($id) {
+            return Room::with(['amenities', 'images', 'reservations' => function($q) {
+                $q->whereIn('status', ['pending', 'confirmed', 'checked-in'])
+                  ->where('check_out', '>=', now())
+                  ->orderBy('check_in', 'asc')
+                  ->select('id', 'room_id', 'check_in', 'check_out', 'status');
+            }])->find($id);
+        });
 
         if (!$room) {
             return response()->json(['message' => 'Room not found'], 404);
@@ -202,6 +260,9 @@ class RoomController extends Controller
             $room->amenities()->sync($amenities);
         }
 
+        // Invalidate room-related caches after update
+        $this->clearRoomCaches($room->id);
+
         return response()->json($room->load(['amenities', 'images']));
     }
 
@@ -216,8 +277,24 @@ class RoomController extends Controller
             return response()->json(['message' => 'Room not found'], 404);
         }
 
+        $roomId = $room->id;
         $room->delete();
 
+        // Invalidate room-related caches after deletion
+        $this->clearRoomCaches($roomId);
+
         return response()->json(['message' => 'Room deleted successfully']);
+    }
+
+    /**
+     * Clear all room-related caches after a mutation.
+     */
+    private function clearRoomCaches($roomId = null)
+    {
+        Cache::forget('rooms_public_list');
+        Cache::forget('all_booked_dates');
+        if ($roomId) {
+            Cache::forget("room_detail_{$roomId}");
+        }
     }
 }

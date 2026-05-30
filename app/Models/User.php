@@ -35,6 +35,8 @@ class User extends Authenticatable
         'profile_photo_path',
         'is_suspended',
         'suspension_reason',
+        'otp_code',
+        'otp_expires_at',
     ];
 
     /**
@@ -88,6 +90,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_suspended' => 'boolean',
+            'otp_expires_at' => 'datetime',
         ];
     }
 

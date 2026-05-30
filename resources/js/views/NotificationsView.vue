@@ -36,7 +36,7 @@
               <div class="card-body p-4">
                 <div class="d-flex gap-4">
                   <div class="notif-icon-box rounded-circle d-flex align-items-center justify-content-center shadow-sm flex-shrink-0"
-                       :class="notif.read_at ? 'bg-light text-muted' : 'bg-gold-glass text-gold'"
+                       :class="[getNotificationColorClass(notif), { 'opacity-75': notif.read_at }]"
                        style="width: 64px; height: 64px;">
                     <i :class="(notif.data.icon || 'bi-info-circle')" style="font-size: 1.5rem;"></i>
                   </div>
@@ -141,6 +141,30 @@ const formatFullDate = (dateStr) => {
         hour: 'numeric',
         minute: '2-digit'
     });
+};
+
+const getNotificationColorClass = (notif) => {
+    const type = notif.data?.type;
+    switch (type) {
+        case 'booking_confirmed':
+        case 'account_restored':
+            return 'notif-theme-confirmed';
+        case 'booking_cancelled':
+        case 'cancellation_request':
+        case 'cancellation_rejected':
+            return 'notif-theme-cancelled';
+        case 'dispute':
+        case 'dispute_update':
+            return 'notif-theme-dispute';
+        case 'new_message':
+            return 'notif-theme-message';
+        case 'account_suspended':
+            return 'notif-theme-account';
+        case 'new_booking':
+        case 'booking_created':
+        default:
+            return 'notif-theme-booking';
+    }
 };
 
 onMounted(fetchNotifications);

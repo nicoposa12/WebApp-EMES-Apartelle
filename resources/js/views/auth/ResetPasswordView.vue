@@ -124,7 +124,7 @@ const handleSubmit = async () => {
 <style scoped>
 /* Reuse styles from ForgotPasswordView */
 .auth-page { min-height: 100vh; position: relative; overflow: hidden; background: #0f172a; }
-.auth-bg-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(circle at top right, rgba(188, 145, 81, 0.2), transparent 40%), url('https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&q=80&w=2000') center/cover; filter: brightness(0.5); z-index: 1; }
+.auth-bg-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(circle at top right, rgba(188, 145, 81, 0.2), transparent 40%), url('/images/unsplash/hotel-building.jpg') center/cover; filter: brightness(0.5); z-index: 1; }
 .auth-card-container { position: relative; z-index: 2; width: 100%; max-width: 900px; padding: 1.5rem; }
 .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(12px); border-radius: 28px; border: 1px solid rgba(255, 255, 255, 0.2); }
 .bg-gold-gradient { background: linear-gradient(135deg, #BC9151 0%, #9A7640 100%); position: relative; }

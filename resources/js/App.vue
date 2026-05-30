@@ -78,7 +78,7 @@
                            @click="handleNotificationClick(notif)">
                         <div class="d-flex gap-3">
                           <div class="notif-icon-circle rounded-circle flex-shrink-0 d-flex align-items-center justify-content-center" 
-                               :class="notif.data.type === 'alert' ? 'bg-danger-subtle text-danger' : 'bg-gold-subtle text-gold'"
+                               :class="[getNotificationColorClass(notif), { 'opacity-75': notif.read_at }]"
                                style="width: 36px; height: 36px;">
                             <i :class="notif.data.icon || 'bi bi-info-circle'"></i>
                           </div>
@@ -267,17 +267,65 @@ const isAuthRoute = computed(() => ['/login', '/register'].includes(route.path))
 const isScrolled = ref(false);
 const notifications = ref([]);
 const unreadCount = ref(0);
+const lastSeenNotificationId = ref(null);
+const lastNotifHash = ref(null);
 let notifInterval = null;
+
+const triggerNewDisputeUpdateAlert = (notif) => {
+    Swal.fire({
+        title: 'Dispute Update!',
+        text: notif.data.message,
+        icon: 'info',
+        iconColor: '#BC9151',
+        showCancelButton: true,
+        confirmButtonColor: '#BC9151',
+        cancelButtonColor: '#718096',
+        confirmButtonText: 'View Resolution',
+        cancelButtonText: 'Dismiss',
+        background: '#fcfaf7',
+    }).then((result) => {
+        if (result.isConfirmed) {
+            router.push('/my-bookings');
+        }
+    });
+};
 
 const fetchNotifications = async () => {
     if (!state.isAuthenticated) return;
+    // Skip polling when tab is hidden (save bandwidth on slow connections)
+    if (document.visibilityState === 'hidden') return;
+
     try {
         const response = await axios.get('/api/notifications');
-        notifications.value = response.data.notifications;
+        const newNotifications = response.data.notifications;
+
+        // Detect new dispute notification for guest
+        if (newNotifications.length > 0) {
+            const latest = newNotifications[0];
+            if (latest.id !== lastSeenNotificationId.value) {
+                // If it's a dispute type or title contains "Dispute"
+                if (latest.data.type === 'dispute' || latest.data.title.includes('Dispute')) {
+                    // Only alert if we've already initialized (not on first load)
+                    if (lastSeenNotificationId.value !== null) {
+                        triggerNewDisputeUpdateAlert(latest);
+                    }
+                }
+                lastSeenNotificationId.value = latest.id;
+            }
+        } else {
+            lastSeenNotificationId.value = 'none';
+        }
+
+        notifications.value = newNotifications;
         unreadCount.value = response.data.unread_count;
 
-        // Automatically refresh user status to catch suspensions/unsuspensions
-        await fetchUser();
+        // Only refresh user status if notification data actually changed
+        // This avoids redundant /api/user calls on every poll cycle
+        const newHash = response.data.unread_count + '_' + (newNotifications[0]?.id || 'none');
+        if (newHash !== lastNotifHash.value) {
+            lastNotifHash.value = newHash;
+            await fetchUser();
+        }
     } catch (err) {
         console.error('Failed to fetch notifications/user status', err);
     }
@@ -321,6 +369,30 @@ const formatNotifTime = (dateStr) => {
     return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
 };
 
+const getNotificationColorClass = (notif) => {
+    const type = notif.data?.type;
+    switch (type) {
+        case 'booking_confirmed':
+        case 'account_restored':
+            return 'notif-theme-confirmed';
+        case 'booking_cancelled':
+        case 'cancellation_request':
+        case 'cancellation_rejected':
+            return 'notif-theme-cancelled';
+        case 'dispute':
+        case 'dispute_update':
+            return 'notif-theme-dispute';
+        case 'new_message':
+            return 'notif-theme-message';
+        case 'account_suspended':
+            return 'notif-theme-account';
+        case 'new_booking':
+        case 'booking_created':
+        default:
+            return 'notif-theme-booking';
+    }
+};
+
 const navLinks = [
   { name: 'Home', path: '/' },
   { name: 'Our Rooms', path: '/rooms' },
@@ -333,17 +405,40 @@ const handleScroll = () => {
   isScrolled.value = window.scrollY > 50;
 };
 
+// Smart polling: starts/stops based on tab visibility
+const startPolling = () => {
+  if (notifInterval) return;
+  fetchNotifications(); // Immediate fetch on resume
+  notifInterval = setInterval(fetchNotifications, 10000); // 10s interval
+};
+
+const stopPolling = () => {
+  if (notifInterval) {
+    clearInterval(notifInterval);
+    notifInterval = null;
+  }
+};
+
+const handleVisibilityChange = () => {
+  if (document.visibilityState === 'visible') {
+    startPolling();
+  } else {
+    stopPolling();
+  }
+};
+
 onMounted(() => {
   window.addEventListener('scroll', handleScroll);
   if (state.isAuthenticated) {
-    fetchNotifications();
-    notifInterval = setInterval(fetchNotifications, 30000); // 30s
+    startPolling();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
   }
 });
 
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll);
-  if (notifInterval) clearInterval(notifInterval);
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
+  stopPolling();
 });
 
 const handleLogout = async () => {
@@ -352,7 +447,7 @@ const handleLogout = async () => {
         text: "Are you sure you want to end your session?",
         icon: 'question',
         showCancelButton: true,
-        confirmButtonColor: '#BC9151', // Primary Gold
+        confirmButtonColor: '#dc3545', // Danger red
         cancelButtonColor: '#718096', // Secondary muted
         confirmButtonText: 'Yes, Sign Out',
         cancelButtonText: 'Cancel',
@@ -376,7 +471,7 @@ const handleLogout = async () => {
                 icon: 'error',
                 title: 'Error',
                 text: 'Failed to sign out. Please try again.',
-                confirmButtonColor: '#BC9151'
+                confirmButtonColor: '#dc3545'
             });
         }
     }

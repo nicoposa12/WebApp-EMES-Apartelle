@@ -21,6 +21,9 @@ class SettingController extends Controller
             'email' => "admin@emesapartelle.com",
             'phone' => "+63 912 345 6789",
             'online_booking' => true,
+            'hotel_address' => "Purok 1, Bacong, Negros Oriental, Philippines",
+            'hotel_latitude' => "9.2458",
+            'hotel_longitude' => "123.2954",
             'maintenance_mode' => false,
             'email_notifications' => true
         ];
@@ -58,12 +61,15 @@ class SettingController extends Controller
      */
     public function public()
     {
-        $publicKeys = ['store_name', 'online_booking', 'maintenance_mode'];
+        $publicKeys = ['store_name', 'online_booking', 'maintenance_mode', 'hotel_address', 'hotel_latitude', 'hotel_longitude'];
         $settings = SystemSetting::whereIn('key', $publicKeys)->pluck('value', 'key');
         
         $defaults = [
             'store_name' => "EME's Apartelle",
             'online_booking' => true,
+            'hotel_address' => "Purok 1, Bacong, Negros Oriental, Philippines",
+            'hotel_latitude' => "9.2458",
+            'hotel_longitude' => "123.2954",
             'maintenance_mode' => false
         ];
 

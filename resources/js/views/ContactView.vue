@@ -1,32 +1,52 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
+import axios from 'axios';
 
-onMounted(() => {
-  window.scrollTo(0, 0);
+const settings = ref({
+  hotel_address: 'Purok 1, Bacong, Negros Oriental, Philippines',
+  hotel_latitude: '9.2458',
+  hotel_longitude: '123.2954',
+  phone: '+63 912 345 6789',
+  email: 'info@emesapartelle.com'
 });
 
-const contactInfo = [
+const mapUrl = computed(() => {
+  const q = encodeURIComponent(`${settings.value.hotel_latitude},${settings.value.hotel_longitude}`);
+  return `https://maps.google.com/maps?q=${q}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
+});
+
+onMounted(async () => {
+  window.scrollTo(0, 0);
+  try {
+    const response = await axios.get('/api/settings/public');
+    Object.assign(settings.value, response.data);
+  } catch (err) {
+    console.error('Failed to load map settings', err);
+  }
+});
+
+const contactInfo = computed(() => [
   {
     icon: 'bi-geo-alt',
     title: 'Address',
-    value: '123 Sample Street, Barangay Centro, City, Philippines'
+    value: settings.value.hotel_address
   },
   {
     icon: 'bi-telephone',
     title: 'Phone',
-    value: '+63 912 345 6789'
+    value: settings.value.phone
   },
   {
     icon: 'bi-envelope',
     title: 'Email',
-    value: 'info@emesapartelle.com'
+    value: settings.value.email
   },
   {
     icon: 'bi-clock',
     title: 'Front Desk',
     value: '24/7 Available'
   }
-];
+]);
 
 const form = ref({
   name: '',
@@ -36,9 +56,7 @@ const form = ref({
 });
 
 const handleSubmit = () => {
-  // Logic to handle form submission
   console.log('Form submitted:', form.value);
-  // Clear form or show success message
 };
 </script>
 
@@ -79,17 +97,17 @@ const handleSubmit = () => {
 
             <div class="divider my-5 bg-light" style="height: 1px;"></div>
 
-            <!-- Map Placeholder -->
-            <div class="map-wrapper rounded-4 overflow-hidden position-relative">
-              <div class="map-placeholder d-flex align-items-center justify-content-center bg-cream border">
-                <div class="text-center p-4">
-                  <div class="icon-circle-gold mb-3 mx-auto shadow-sm">
-                    <i class="bi bi-geo-alt fs-3"></i>
-                  </div>
-                  <h6 class="fw-bold text-secondary-dark mb-1">Our Location</h6>
-                  <p class="small text-muted mb-0">Interactive map loading...</p>
-                </div>
-              </div>
+            <!-- Interactive Map -->
+            <div class="map-wrapper rounded-4 overflow-hidden position-relative shadow-sm border">
+               <iframe 
+                width="100%" 
+                height="300" 
+                frameborder="0" 
+                scrolling="no" 
+                marginheight="0" 
+                marginwidth="0" 
+                :src="mapUrl">
+              </iframe>
             </div>
           </div>
         </div>
@@ -160,7 +178,7 @@ const handleSubmit = () => {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  display: inline-block;
+  border: 1px solid white;
 }
 
 .label-text {
@@ -172,11 +190,10 @@ const handleSubmit = () => {
 
 /* ========== PAGE HEADER ========== */
 .page-header {
-  background: url('https://images.unsplash.com/photo-1596524430615-b46475ddff6e?auto=format&fit=crop&w=1920&q=80') center/cover no-repeat;
+  background: url('/images/unsplash/contact-bg.jpg') center/cover no-repeat;
   position: relative;
-  padding: 12rem 0 10rem; /* Increased for navbar offset + breathing room */
+  padding: 12rem 0 10rem;
   background-attachment: fixed;
-  margin-bottom: 0;
 }
 
 .contrast-overlay::before {
@@ -219,9 +236,8 @@ const handleSubmit = () => {
   box-shadow: 0 10px 20px rgba(188, 145, 81, 0.15);
 }
 
-.map-placeholder {
-  height: 250px;
-  border: 1px solid rgba(0,0,0,0.05) !important;
+.map-wrapper {
+  height: 300px;
 }
 
 /* ========== FORM PREMIUM STYLES ========== */

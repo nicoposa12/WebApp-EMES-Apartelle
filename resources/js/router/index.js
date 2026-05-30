@@ -1,28 +1,36 @@
 import { createRouter, createWebHistory } from 'vue-router';
+
+// ── Eagerly loaded: Landing page (fastest first paint) ──
 import HomeView from '../views/HomeView.vue';
-import RoomListView from '../views/RoomListView.vue';
-import RoomDetailView from '../views/RoomDetailView.vue';
-import BookingView from '../views/BookingView.vue';
-import AboutView from '../views/AboutView.vue';
-import ContactView from '../views/ContactView.vue';
-import AdminLayout from '../views/admin/AdminLayout.vue';
-import AdminDashboard from '../views/admin/DashboardView.vue';
-import AdminReservations from '../views/admin/ReservationsView.vue';
-import AdminRooms from '../views/admin/AdminRoomsView.vue';
-import AdminGuests from '../views/admin/GuestsView.vue';
-import AdminPayments from '../views/admin/PaymentsView.vue';
-import AdminSettings from '../views/admin/SettingsView.vue';
-import AdminAmenities from '../views/admin/AmenitiesView.vue';
-import AdminMessages from '../views/admin/MessagesView.vue';
-import AdminChatbot from '../views/admin/ChatbotView.vue';
-import LoginView from '../views/auth/LoginView.vue';
-import RegisterView from '../views/auth/RegisterView.vue';
-import ProfileView from '../views/ProfileView.vue';
-import MyBookingsView from '../views/MyBookingsView.vue';
-import ForgotPasswordView from '../views/auth/ForgotPasswordView.vue';
-import ResetPasswordView from '../views/auth/ResetPasswordView.vue';
-import NotificationsView from '../views/NotificationsView.vue';
-import AdminLoginView from '../views/admin/AdminLoginView.vue';
+
+// ── Lazy-loaded: All other routes (on-demand code splitting) ──
+const RoomListView = () => import('../views/RoomListView.vue');
+const RoomDetailView = () => import('../views/RoomDetailView.vue');
+const BookingView = () => import('../views/BookingView.vue');
+const AboutView = () => import('../views/AboutView.vue');
+const ContactView = () => import('../views/ContactView.vue');
+const LoginView = () => import('../views/auth/LoginView.vue');
+const RegisterView = () => import('../views/auth/RegisterView.vue');
+const ProfileView = () => import('../views/ProfileView.vue');
+const MyBookingsView = () => import('../views/MyBookingsView.vue');
+const ForgotPasswordView = () => import('../views/auth/ForgotPasswordView.vue');
+const ResetPasswordView = () => import('../views/auth/ResetPasswordView.vue');
+const NotificationsView = () => import('../views/NotificationsView.vue');
+const AdminLoginView = () => import('../views/admin/AdminLoginView.vue');
+
+// ── Admin views (only loaded when admin navigates to them) ──
+const AdminLayout = () => import('../views/admin/AdminLayout.vue');
+const AdminDashboard = () => import('../views/admin/DashboardView.vue');
+const AdminReservations = () => import('../views/admin/ReservationsView.vue');
+const AdminRooms = () => import('../views/admin/AdminRoomsView.vue');
+const AdminGuests = () => import('../views/admin/GuestsView.vue');
+const AdminPayments = () => import('../views/admin/PaymentsView.vue');
+const AdminSettings = () => import('../views/admin/SettingsView.vue');
+const AdminAmenities = () => import('../views/admin/AmenitiesView.vue');
+const AdminMessages = () => import('../views/admin/MessagesView.vue');
+const AdminChatbot = () => import('../views/admin/ChatbotView.vue');
+const AdminReports = () => import('../views/admin/ReportsView.vue');
+const AdminDisputes = () => import('../views/admin/DisputesView.vue');
 
 const routes = [
     {
@@ -117,10 +125,12 @@ const routes = [
             { path: 'rooms', name: 'admin-rooms', component: AdminRooms },
             { path: 'guests', name: 'admin-guests', component: AdminGuests },
             { path: 'payments', name: 'admin-payments', component: AdminPayments },
+            { path: 'reports', name: 'admin-reports', component: AdminReports },
             { path: 'settings', name: 'admin-settings', component: AdminSettings },
             { path: 'amenities', name: 'admin-amenities', component: AdminAmenities },
             { path: 'messages', name: 'admin-messages', component: AdminMessages },
             { path: 'chatbot', name: 'admin-chatbot', component: AdminChatbot },
+            { path: 'disputes', name: 'admin-disputes', component: AdminDisputes },
         ]
     }
 ];
@@ -140,7 +150,7 @@ router.beforeEach((to, from, next) => {
         if (!isAuthenticated) {
             return next({ name: 'admin-login' });
         }
-        if (user && user.role !== 'admin') {
+        if (user && !['admin', 'staff'].includes(user.role)) {
             return next({ name: 'rooms' }); // Redirect regular users to rooms
         }
     }

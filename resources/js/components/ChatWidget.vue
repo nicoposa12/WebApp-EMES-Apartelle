@@ -134,6 +134,16 @@
                        <img :src="msg.image" class="w-100 object-fit-cover cursor-pointer" @click="openImageModal(msg.image)" style="max-height: 180px;">
                      </div>
                   </div>
+                  <!-- Quick Replies / Suggested Triggers -->
+                  <div v-if="!isOwnMessage(msg) && msg.quick_replies && msg.quick_replies.length > 0" class="mt-2 d-flex flex-wrap gap-2">
+                     <button v-for="reply in msg.quick_replies" :key="reply" 
+                             @click="handleQuickReply(reply)"
+                             class="btn btn-sm btn-outline-gold rounded-pill bg-white px-3 py-1 shadow-sm transition-all hover-translate-y"
+                             style="font-size: 0.75rem; border-width: 1px;">
+                        {{ reply }}
+                     </button>
+                  </div>
+
                   <small class="time-stamp mt-1 px-1" :class="isOwnMessage(msg) ? 'text-muted text-end' : 'text-muted'">
                     {{ formatTime(msg.created_at) }}
                     <i v-if="isOwnMessage(msg)" class="bi ms-1" :class="msg.is_read ? (chatMode === 'chatbot' ? 'bi-check-all text-gold' : 'bi-check-all text-premium-dark') : 'bi-check'"></i>
@@ -302,14 +312,30 @@ const getLocalBotReply = (message) => {
       });
     }
 
-    if (matched) return rule.response;
+    if (matched) {
+      const suggested = rule.suggested_triggers 
+        ? rule.suggested_triggers.split(',').map(t => t.trim()).filter(t => t) 
+        : null;
+
+      return {
+        response: rule.response,
+        suggestedTriggers: suggested
+      };
+    }
   }
+  
+  const fallback = {
+    response: '',
+    suggestedTriggers: null
+  };
   
   if (!state.user) {
-    return "Hello Ma'am/Sir! I'm sorry, I don't know that yet. Ask about **WiFi**, **Price**, or **Amenities**. To talk to a real person and save your chat, please **Sign In**!";
+    fallback.response = "Hello Ma'am/Sir! I'm sorry, I don't know that yet. Ask about **WiFi**, **Price**, or **Amenities**. To talk to a real person and save your chat, please **Sign In**!";
+    return fallback;
   }
   
-  return `Hi ${state.user.name.split(' ')[0]}! I didn't catch that. Ask about our **WiFi**, **Price**, or **Location**, or switch to **Live Chat** to speak with our staff.`;
+  fallback.response = `Hi ${state.user.name.split(' ')[0]}! I didn't catch that. Ask about our **WiFi**, **Price**, or **Location**, or switch to **Live Chat** to speak with our staff.`;
+  return fallback;
 };
 
 const toggleWidget = () => {
@@ -477,12 +503,16 @@ const sendMessage = async () => {
     isTyping.value = true;
     setTimeout(() => {
       const botReply = getLocalBotReply(text);
+      
+      // Main response
       chatbotMessages.value.push({
         id: Date.now() + 1,
-        message: botReply,
+        message: botReply.response,
+        quick_replies: botReply.suggestedTriggers,
         is_own: false,
         created_at: new Date().toISOString()
       });
+
       isTyping.value = false;
       scrollToBottom();
     }, 1500);
@@ -526,6 +556,11 @@ const sendMessage = async () => {
   } finally {
     sending.value = false;
   }
+};
+
+const handleQuickReply = (text) => {
+  newMessage.value = text;
+  sendMessage();
 };
 
 const openImageModal = (url) => {
@@ -782,5 +817,23 @@ onUnmounted(() => {
 
 .text-white-50 {
   color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.btn-outline-gold {
+  color: var(--primary-gold);
+  border-color: rgba(188, 145, 81, 0.3);
+  background: white;
+  font-weight: 500;
+}
+
+.btn-outline-gold:hover {
+  background-color: var(--primary-gold);
+  color: white;
+  border-color: var(--primary-gold);
+  box-shadow: 0 4px 12px rgba(188, 145, 81, 0.2);
+}
+
+.hover-translate-y:hover {
+  transform: translateY(-2px);
 }
 </style>

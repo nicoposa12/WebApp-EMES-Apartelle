@@ -378,8 +378,8 @@ const confirmDelete = (id) => {
     text: "Are you sure you want to delete this feature?",
     icon: 'warning',
     showCancelButton: true,
-    confirmButtonColor: '#BC9151',
-    cancelButtonColor: '#334155',
+    confirmButtonColor: '#dc3545',
+    cancelButtonColor: '#718096',
     confirmButtonText: 'Yes, Delete'
   }).then(async (result) => {
     if (result.isConfirmed) {

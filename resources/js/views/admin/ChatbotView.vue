@@ -39,10 +39,17 @@
                   </div>
                 </td>
                 <td class="py-4">
-                  <div class="response-cell bg-light-soft p-3 rounded-4 shadow-sm border border-light">
-                    <p class="mb-0 text-secondary-dark small" style="line-height: 1.6;">
+                  <div class="response-cell bg-light-soft p-3 rounded-4 shadow-sm border border-light"> 
+                    <p class="mb-0 text-secondary-dark small fw-bold" style="line-height: 1.6;">
                       {{ rule.response }}
                     </p>
+                    <div v-if="rule.suggested_triggers" class="mt-2">
+                       <div class="d-flex flex-wrap gap-1">
+                          <span v-for="tag in rule.suggested_triggers.split(',')" :key="tag" class="badge rounded-pill bg-white text-gold border border-gold-subtle x-small fw-normal">
+                             {{ tag.trim() }}
+                          </span>
+                       </div>
+                    </div>
                   </div>
                 </td>
                 <td class="py-4 text-center">
@@ -152,11 +159,38 @@
                 </div>
 
                 <div class="col-12 mt-4">
-                  <label class="form-label small fw-bold text-secondary-dark mb-2">Automated Response</label>
+                  <label class="form-label small fw-bold text-secondary-dark mb-2 d-flex align-items-center justify-content-between">
+                    <span>Automated Response</span>
+                    <span v-if="detectedKeywordsInResponse.length > 0" class="badge bg-gold-subtle text-gold rounded-pill px-2 py-1 x-small fw-bold animate-pulse-slow">
+                       <i class="bi bi-lightning-fill me-1"></i> {{ detectedKeywordsInResponse.length }} Triggers Detected
+                    </span>
+                  </label>
                   <textarea v-model="form.response" 
                             class="form-control rounded-4 py-3 shadow-none focus-within-premium" 
-                            rows="5" 
+                            :class="{'border-gold shadow-gold-sm': detectedKeywordsInResponse.length > 0}"
+                            rows="4" 
                             placeholder="Type the automated reply here..." required></textarea>
+                  
+                  <!-- Detected Keywords Display -->
+                  <div v-if="detectedKeywordsInResponse.length > 0" class="mt-2 pt-2 border-top border-light-soft animate-fade-in">
+                    <div class="d-flex flex-wrap gap-1">
+                       <span v-for="keyword in detectedKeywordsInResponse" :key="keyword" 
+                             class="keyword-chip badge rounded-pill bg-gold text-white px-2 py-1 x-small fw-bold shadow-sm d-flex align-items-center gap-1">
+                          {{ keyword }}
+                          <button type="button" @click="addDetectedToSuggestions(keyword)" class="btn btn-link p-0 text-white leading-none hover-scale-lg" title="Add to suggestions">
+                             <i class="bi bi-plus-circle-fill"></i>
+                          </button>
+                       </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="col-12 mt-3">
+                  <label class="form-label small fw-bold text-secondary-dark mb-2">Suggested Triggers (Optional)</label>
+                  <input v-model="form.suggested_triggers" type="text" 
+                         class="form-control rounded-4 py-2.5 focus-within-premium shadow-none" 
+                         placeholder="e.g. WiFi, Location, Menu">
+                  <div class="form-text x-small text-muted mt-1">Comma-separated keywords to suggest as clickable buttons.</div>
                 </div>
 
                 <div class="col-12 mt-4">
@@ -215,9 +249,38 @@ const paginatedRules = computed(() => {
 const form = ref({
   trigger: '',
   response: '',
+  suggested_triggers: '',
   match_type: 'contains',
   is_active: true
 });
+
+// Real-time Keyword Detection
+const allTriggerKeywords = computed(() => {
+  const set = new Set();
+  rules.value.forEach(r => {
+    r.trigger.split(',').map(t => t.trim().toLowerCase()).forEach(t => {
+      if (t) set.add(t);
+    });
+  });
+  return Array.from(set);
+});
+
+const detectedKeywordsInResponse = computed(() => {
+  const msg = (form.value.response || "").toLowerCase();
+  if (!msg) return [];
+  return allTriggerKeywords.value.filter(keyword => {
+    const pattern = new RegExp(`\\b${keyword}\\b`, 'i');
+    return pattern.test(msg);
+  });
+});
+
+const addDetectedToSuggestions = (keyword) => {
+  const current = (form.value.suggested_triggers || "").split(',').map(t => t.trim().toLowerCase());
+  if (!current.includes(keyword.toLowerCase())) {
+     const newValue = form.value.suggested_triggers ? `${form.value.suggested_triggers}, ${keyword}` : keyword;
+     form.value.suggested_triggers = newValue;
+  }
+};
 
 const fetchRules = async () => {
   loading.value = true;
@@ -240,6 +303,7 @@ const openModal = (rule = null) => {
     form.value = {
       trigger: '',
       response: '',
+      suggested_triggers: '',
       match_type: 'contains',
       is_active: true
     };
@@ -301,11 +365,11 @@ const confirmDelete = async (rule) => {
     text: `Delete the rule for "${rule.trigger}"?`,
     icon: 'warning',
     showCancelButton: true,
-    confirmButtonColor: '#0f172a',
-    cancelButtonColor: '#d33',
+    confirmButtonColor: '#dc3545',
+    cancelButtonColor: '#718096',
     confirmButtonText: 'Yes, delete it!',
     background: '#f8fafc',
-    iconColor: '#d33'
+    iconColor: '#dc3545'
   });
 
   if (result.isConfirmed) {
@@ -435,6 +499,27 @@ onMounted(fetchRules);
 
 .shadow-gold {
   box-shadow: 0 4px 12px rgba(188, 145, 81, 0.2);
+}
+
+.shadow-gold-sm {
+  box-shadow: 0 4px 12px rgba(188, 145, 81, 0.1);
+}
+
+.border-gold {
+  border-color: #bc9151 !important;
+}
+
+.animate-pulse-slow {
+   animation: pulse-slow 3s infinite;
+}
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.hover-scale-lg:hover {
+  transform: scale(1.2);
 }
 
 .max-w-sm {

@@ -239,13 +239,19 @@ class MessageController extends Controller
             }
 
             if ($matched) {
+                $quickReplies = $rule->suggested_triggers 
+                    ? array_filter(array_map('trim', explode(',', $rule->suggested_triggers))) 
+                    : null;
+
                 Message::create([
                     'sender_id' => $admin->id,
                     'receiver_id' => $guestId,
                     'message' => $rule->response,
+                    'quick_replies' => $quickReplies,
                     'is_read' => false,
                     'is_chatbot' => true
                 ]);
+                
                 return; // Stop after first match
             }
         }

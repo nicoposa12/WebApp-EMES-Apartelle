@@ -13,9 +13,16 @@ class Message extends Model
         'sender_id',
         'receiver_id',
         'message',
+        'quick_replies',
         'image',
         'is_read',
         'is_chatbot',
+    ];
+    
+    protected $casts = [
+        'quick_replies' => 'array',
+        'is_read' => 'boolean',
+        'is_chatbot' => 'boolean',
     ];
 
     public function sender()

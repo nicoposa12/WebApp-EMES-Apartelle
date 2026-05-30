@@ -301,7 +301,7 @@ const suspendGuestAction = (guest) => {
     },
     inputPlaceholder: 'Select a reason for suspension',
     showCancelButton: true,
-    confirmButtonColor: '#d33',
+    confirmButtonColor: '#dc3545',
     cancelButtonColor: '#718096',
     confirmButtonText: 'Suspend Now',
     inputValidator: (value) => {

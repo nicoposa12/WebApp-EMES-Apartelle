@@ -50,7 +50,7 @@ const values = [
           <div class="row align-items-center g-5 animate-fade-up delay-1">
             <div class="col-lg-6">
               <div class="journey-image-wrapper">
-                <img src="https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1200&q=80" alt="EME's Apartelle Journey" class="img-fluid rounded-4 shadow-lg">
+                <img src="/images/unsplash/hotel-building.jpg" alt="EME's Apartelle Journey" class="img-fluid rounded-4 shadow-lg">
               </div>
             </div>
             <div class="col-lg-6">
@@ -128,7 +128,7 @@ const values = [
 
 <style scoped>
 .page-header {
-  background: url('https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=1920&q=80') center/center no-repeat;
+  background: url('/images/unsplash/hotel-pool.jpg') center/center no-repeat;
   position: relative;
   padding: 12rem 0 10rem;
   background-attachment: fixed;

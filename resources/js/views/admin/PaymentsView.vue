@@ -14,6 +14,7 @@
             <thead>
               <tr>
                 <th class="ps-4 border-0 text-muted small fw-bold text-uppercase">Transaction ID</th>
+                <th class="border-0 text-muted small fw-bold text-uppercase">Guest</th>
                 <th class="border-0 text-muted small fw-bold text-uppercase">Method</th>
                 <th class="border-0 text-muted small fw-bold text-uppercase">Amount</th>
                 <th class="border-0 text-muted small fw-bold text-uppercase">Date</th>
@@ -23,6 +24,15 @@
             <tbody>
               <tr v-for="pay in paginatedPayments" :key="pay.id">
                 <td class="ps-4 py-3"><span class="small fw-bold text-secondary-dark">#TXN-{{ pay.id }}</span></td>
+                <td>
+                  <div class="d-flex flex-column" v-if="pay.reservation?.user">
+                    <span class="small fw-bold text-secondary-dark">{{ pay.reservation.user.name }}</span>
+                    <small class="text-muted" v-if="pay.reservation.user.phone">
+                      <i class="bi bi-telephone small me-1"></i>{{ pay.reservation.user.phone }}
+                    </small>
+                  </div>
+                  <span v-else class="small text-muted italic">No Guest Info</span>
+                </td>
                 <td>
                   <div class="d-flex align-items-center gap-2">
                     <i class="bi bi-credit-card-2-back text-muted opacity-50"></i>
@@ -110,16 +120,20 @@ const mapPaymentMethod = (method) => {
   if (!method) return 'N/A';
   const m = method.toLowerCase();
   const map = {
-    'gcash': 'GCash',
-    'grab_pay': 'GrabPay',
+    'gcash': 'GCash (E-Wallet)',
+    'grab_pay': 'GrabPay (E-Wallet)',
     'maya': 'Maya / PayMaya',
     'paymaya': 'Maya / PayMaya',
     'card': 'Credit/Debit Card',
-    'qrph': 'QRPH',
+    'credit_card': 'Credit/Debit Card',
+    'qrph': 'QRPh / QR Code',
+    'qr_code': 'QR Code',
+    'ewallet': 'E-Wallet',
     'dob': 'Direct Online Banking',
     'dob_ubp': 'UnionBank (Online)',
     'cash/manual': 'Cash (Walk-in)',
-    'checkout_session': 'Online Payment'
+    'checkout_session': 'Online Payment',
+    'xendit': 'Online Settlement (Xendit)'
   };
   return map[m] || method.toUpperCase();
 };

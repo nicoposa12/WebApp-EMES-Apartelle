@@ -5,16 +5,21 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Amenity;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Validator;
 
 class AmenityController extends Controller
 {
     /**
      * Display a listing of the resource.
+     * Cached for 10 minutes since amenities rarely change.
      */
     public function index()
     {
-        $amenities = Amenity::all();
+        $amenities = Cache::remember('amenities_list', 600, function () {
+            return Amenity::all();
+        });
+
         return response()->json($amenities);
     }
 
@@ -35,6 +40,9 @@ class AmenityController extends Controller
         }
 
         $amenity = Amenity::create($request->all());
+
+        // Invalidate cache after mutation
+        Cache::forget('amenities_list');
 
         return response()->json($amenity, 201);
     }
@@ -77,6 +85,9 @@ class AmenityController extends Controller
 
         $amenity->update($request->all());
 
+        // Invalidate cache after mutation
+        Cache::forget('amenities_list');
+
         return response()->json($amenity);
     }
 
@@ -92,6 +103,9 @@ class AmenityController extends Controller
         }
 
         $amenity->delete();
+
+        // Invalidate cache after mutation
+        Cache::forget('amenities_list');
 
         return response()->json(['message' => 'Amenity deleted successfully']);
     }

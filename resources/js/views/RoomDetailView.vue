@@ -20,7 +20,8 @@ const systemSettings = ref({ online_booking: true, maintenance_mode: false });
 const booking = reactive({
   check_in: '',
   check_out: '',
-  guests: 1
+  guests: 1,
+  payment_option: 'full'
 });
 
 const showCheckInCalendar = ref(false);
@@ -87,9 +88,9 @@ const getRoomImage = (room) => {
   
   // Fallback images based on room type
   const type = room.room_type.toLowerCase();
-  if (type.includes('suite')) return 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=1200&q=80';
-  if (type.includes('deluxe')) return 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1200&q=80';
-  return 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=1200&q=80';
+  if (type.includes('suite')) return '/images/unsplash/suite-room.jpg';
+  if (type.includes('deluxe')) return '/images/unsplash/deluxe-room.jpg';
+  return '/images/unsplash/standard-room.jpg';
 };
 
 const handleBooking = async () => {
@@ -125,7 +126,8 @@ const handleBooking = async () => {
       room_id: room.value.id,
       check_in: booking.check_in,
       check_out: booking.check_out,
-      guests: booking.guests
+      guests: booking.guests,
+      payment_option: booking.payment_option
     });
 
     if (response.data.checkout_url) {
@@ -158,7 +160,79 @@ const formatDateRange = (start, end) => {
   return `${startDate} - ${endDate}, ${year}`;
 };
 
-onMounted(fetchRoom);
+const reviewsData = ref({
+  average_rating: 0,
+  total_reviews: 0,
+  star_distribution: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
+  reviews: []
+});
+
+const fetchReviews = async () => {
+  try {
+    const response = await axios.get(`/api/rooms/${route.params.id}/reviews`);
+    reviewsData.value = response.data;
+  } catch (err) {
+    console.error("Failed to fetch reviews", err);
+  }
+};
+
+const formatReviewDate = (dateStr) => {
+  if (!dateStr) return '';
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+};
+
+const handleReplyReview = async (review) => {
+  const { value: replyText } = await Swal.fire({
+    title: review.admin_reply ? 'Edit Response' : 'Reply to Guest',
+    input: 'textarea',
+    inputLabel: `Respond to ${review.user?.name || 'Guest'}'s review`,
+    inputValue: review.admin_reply || '',
+    inputPlaceholder: 'Type your official response here... (Min. 5 characters)',
+    inputAttributes: {
+      'aria-label': 'Type your official response here'
+    },
+    showCancelButton: true,
+    confirmButtonColor: '#BC9151',
+    cancelButtonColor: '#718096',
+    confirmButtonText: 'Post Response',
+    preConfirm: (value) => {
+      if (!value || value.trim().length < 5) {
+        Swal.showValidationMessage('Response must be at least 5 characters long.');
+        return false;
+      }
+      return value;
+    }
+  });
+
+  if (replyText) {
+    try {
+      await axios.post(`/api/admin/reviews/${review.id}/reply`, {
+        admin_reply: replyText
+      });
+      
+      Swal.fire({
+        icon: 'success',
+        title: 'Response Posted!',
+        text: 'Your official response has been successfully posted.',
+        confirmButtonColor: '#BC9151'
+      });
+      
+      fetchReviews(); // Refresh reviews list
+    } catch (err) {
+      console.error("Failed to post response", err);
+      Swal.fire({
+        icon: 'error',
+        title: 'Posting Failed',
+        text: err.response?.data?.message || 'Could not submit your response. Please try again.'
+      });
+    }
+  }
+};
+
+onMounted(() => {
+  fetchRoom();
+  fetchReviews();
+});
 </script>
 
 <template>
@@ -269,6 +343,114 @@ onMounted(fetchRoom);
                <p class="text-muted mb-0">Standard amenities included with this room.</p>
             </div>
           </div>
+
+          <!-- Guest Reviews Section -->
+          <div class="room-section mt-5 border-top pt-5">
+            <h4 class="section-title serif-font fw-bold mb-4 text-secondary-dark d-flex align-items-center gap-2">
+              <i class="bi bi-chat-left-heart-fill text-gold"></i>
+              Guest Reviews & Feedback
+            </h4>
+
+            <div class="row g-4 mb-4 align-items-stretch">
+              <!-- Rating Score Overview -->
+              <div class="col-md-5 d-flex">
+                <div class="rating-overview-card w-100 p-4 rounded-4 bg-white shadow-sm border text-center d-flex flex-column justify-content-center align-items-center">
+                  <span class="x-small text-muted text-uppercase fw-bold tracking-widest mb-1">Average Rating</span>
+                  <div class="display-3 fw-bold text-secondary-dark serif-font mb-2">{{ reviewsData.average_rating }}</div>
+                  
+                  <!-- Stars Row -->
+                  <div class="stars-row text-gold fs-5 mb-2 d-flex gap-1">
+                    <i v-for="star in 5" :key="star" :class="star <= Math.round(reviewsData.average_rating) ? 'bi bi-star-fill text-warning' : 'bi bi-star text-muted'"></i>
+                  </div>
+                  
+                  <span class="small text-muted fw-bold">Based on {{ reviewsData.total_reviews }} reviews</span>
+                </div>
+              </div>
+
+              <!-- Rating Star Distribution -->
+              <div class="col-md-7 d-flex">
+                <div class="rating-distribution-card w-100 p-4 rounded-4 bg-white shadow-sm border d-flex flex-column justify-content-between">
+                  <div v-for="star in [5, 4, 3, 2, 1]" :key="star" class="d-flex align-items-center gap-3">
+                    <span class="small fw-bold text-muted" style="min-width: 48px;">{{ star }} Star</span>
+                    <div class="progress flex-grow-1" style="height: 8px; border-radius: 4px;">
+                      <div 
+                        class="progress-bar bg-gold rounded-pill" 
+                        role="progressbar" 
+                        :style="{ width: reviewsData.total_reviews > 0 ? ((reviewsData.star_distribution[star] || 0) / reviewsData.total_reviews * 100) + '%' : '0%' }"
+                        aria-valuenow="0" 
+                        aria-valuemin="0" 
+                        aria-valuemax="100"
+                      ></div>
+                    </div>
+                    <span class="small text-muted fw-bold text-end" style="min-width: 32px;">
+                      {{ reviewsData.star_distribution[star] || 0 }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Reviews List -->
+            <div class="reviews-list-container d-flex flex-column gap-3 mt-4" v-if="reviewsData.reviews.length > 0">
+              <div v-for="review in reviewsData.reviews" :key="review.id" class="review-item-card p-4 rounded-4 bg-white shadow-sm border animate-fade-in">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                  <div class="d-flex align-items-center gap-3">
+                    <div class="avatar-md rounded-circle bg-gold-subtle text-gold d-flex align-items-center justify-content-center fw-bold overflow-hidden" style="width: 40px; height: 40px;">
+                      <img v-if="review.user?.profile_photo_url" :src="review.user.profile_photo_url" :alt="review.user?.name" class="w-100 h-100 object-fit-cover">
+                      <span v-else>{{ (review.user?.name || 'G').charAt(0) }}</span>
+                    </div>
+                    <div>
+                      <h6 class="fw-bold text-secondary-dark mb-0 small">{{ review.user?.name || 'Guest' }}</h6>
+                      <small class="text-muted x-small">{{ formatReviewDate(review.created_at) }}</small>
+                    </div>
+                  </div>
+                  <div class="text-gold small d-flex gap-1">
+                    <i v-for="star in 5" :key="star" :class="star <= review.rating ? 'bi bi-star-fill text-warning' : 'bi bi-star text-muted'"></i>
+                  </div>
+                </div>
+                <p class="review-comment text-muted mb-0 small lh-lg font-italic">"{{ review.comment }}"</p>
+
+                <!-- Admin Reply if exists -->
+                <div v-if="review.admin_reply" class="admin-reply-card mt-3 p-3 rounded-3 bg-light border-start border-gold border-3 animate-fade-in text-start">
+                  <div class="d-flex align-items-center justify-content-between mb-2">
+                    <div class="d-flex align-items-center gap-2">
+                      <div class="rounded-circle bg-gold text-white d-flex align-items-center justify-content-center" style="width: 22px; height: 22px; background-color: var(--primary-gold);">
+                        <i class="bi bi-award-fill" style="font-size: 0.75rem;"></i>
+                      </div>
+                      <span class="x-small fw-bold text-secondary-dark text-uppercase tracking-wider">Response from EME's Apartelle</span>
+                    </div>
+                    <button 
+                      v-if="state.user?.role === 'admin' || state.user?.role === 'staff'" 
+                      class="btn btn-link text-gold p-0 x-small fw-bold text-decoration-none shadow-none"
+                      @click="handleReplyReview(review)"
+                    >
+                      <i class="bi bi-pencil-square"></i> Edit Response
+                    </button>
+                  </div>
+                  <p class="mb-0 text-muted x-small lh-base font-italic">"{{ review.admin_reply }}"</p>
+                </div>
+
+                <!-- Admin action to reply -->
+                <div v-if="!review.admin_reply && (state.user?.role === 'admin' || state.user?.role === 'staff')" class="mt-3 text-end animate-fade-in">
+                  <button 
+                    class="btn btn-outline-gold btn-sm rounded-pill px-3 fw-bold x-small text-uppercase"
+                    @click="handleReplyReview(review)"
+                  >
+                    <i class="bi bi-reply-fill"></i> Reply to Guest
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Empty Reviews State -->
+            <div v-else class="p-5 bg-white rounded-4 text-center border shadow-sm mt-4">
+              <div class="p-3 bg-gold-lightest d-inline-flex rounded-circle mb-3">
+                 <i class="bi bi-chat-left-quote text-gold display-6"></i>
+              </div>
+              <h5 class="fw-bold mb-2">No Reviews Yet</h5>
+              <p class="text-muted small mb-0">Be the first to share your experience! Review this room in the "My Bookings" page after your stay.</p>
+            </div>
+          </div>
         </div>
 
         <!-- Right Column - Booking Sidebar -->
@@ -344,6 +526,31 @@ onMounted(fetchRoom);
                           <option v-for="n in room.max_occupancy" :key="n" :value="n">{{ n }} Guest{{ n > 1 ? 's' : '' }}</option>
                         </select>
                       </div>
+                      
+                      <!-- Payment Option Switcher -->
+                      <div class="col-12 mt-3 mb-2">
+                        <label class="form-label admin-label mb-1 small fw-bold text-muted text-uppercase tracking-wider">Payment Option</label>
+                        <div class="d-flex gap-2">
+                          <button 
+                            type="button"
+                            class="btn btn-outline-gold flex-grow-1 py-2 px-3 fw-bold small text-uppercase"
+                            :class="{ 'btn-gold text-white': booking.payment_option === 'full' }"
+                            @click="booking.payment_option = 'full'"
+                            style="font-size: 0.7rem; border-radius: 12px; height: 38px;"
+                          >
+                            Full Payment
+                          </button>
+                          <button 
+                            type="button"
+                            class="btn btn-outline-gold flex-grow-1 py-2 px-3 fw-bold small text-uppercase"
+                            :class="{ 'btn-gold text-white': booking.payment_option === 'half' }"
+                            @click="booking.payment_option = 'half'"
+                            style="font-size: 0.7rem; border-radius: 12px; height: 38px;"
+                          >
+                            50% Downpayment
+                          </button>
+                        </div>
+                      </div>
                     
                     <!-- Financial Summary -->
                     <div v-if="totalNights > 0" class="financial-summary mb-4 p-4 rounded-4 bg-gold-lightest border border-gold-light">
@@ -351,13 +558,21 @@ onMounted(fetchRoom);
                         <span class="text-muted small fw-semibold">Room Price × {{ totalNights }} Nights</span>
                         <span class="text-dark small fw-bold">₱{{ formatPrice(subtotal) }}</span>
                       </div>
-                      <div class="d-flex justify-content-between mb-3">
+                      <div class="d-flex justify-content-between mb-2">
                         <span class="text-muted small fw-semibold">Service & Tourism Fee</span>
                         <span class="text-success small fw-bold">INCLUDED</span>
                       </div>
-                      <div class="d-flex justify-content-between pt-3 border-top border-gold-light">
-                        <span class="h5 mb-0 fw-bold text-dark serif-font">Total Price</span>
-                        <span class="h5 mb-0 fw-bold text-gold serif-font">₱{{ formatPrice(subtotal) }}</span>
+                      <div v-if="booking.payment_option === 'half'" class="d-flex justify-content-between mb-2 border-top border-gold-light pt-2 text-muted">
+                        <span class="x-small fw-semibold">Remaining Balance (Pay at Hotel)</span>
+                        <span class="small fw-bold">₱{{ formatPrice(subtotal / 2) }}</span>
+                      </div>
+                      <div class="d-flex justify-content-between pt-3 border-top border-gold-light" :class="booking.payment_option === 'half' ? 'border-dashed' : ''">
+                        <span class="h5 mb-0 fw-bold text-dark serif-font">
+                          {{ booking.payment_option === 'half' ? 'Downpayment Due' : 'Total Price' }}
+                        </span>
+                        <span class="h5 mb-0 fw-bold text-gold serif-font">
+                          ₱{{ formatPrice(booking.payment_option === 'half' ? subtotal / 2 : subtotal) }}
+                        </span>
                       </div>
                     </div>
 
@@ -373,7 +588,9 @@ onMounted(fetchRoom);
                       <span v-if="bookingLoading" class="spinner-border spinner-border-sm me-2"></span>
                       <template v-if="systemSettings.maintenance_mode">Maintenance</template>
                       <template v-else-if="!systemSettings.online_booking">Online Disabled</template>
-                      <template v-else>{{ room.status === 'available' ? 'Book Now' : 'Unavailable' }}</template>
+                      <template v-else>
+                        {{ room.status === 'available' ? (booking.payment_option === 'half' ? 'Pay Downpayment' : 'Book Now') : 'Unavailable' }}
+                      </template>
                     </button>
                   </form>
 
@@ -583,5 +800,20 @@ onMounted(fetchRoom);
 .booked-dates-list::-webkit-scrollbar-thumb {
   background: #e2e8f0;
   border-radius: 10px;
+}
+.btn-outline-gold {
+  border: 1px solid var(--primary-gold) !important;
+  color: var(--primary-gold) !important;
+  background-color: transparent !important;
+  transition: all 0.3s ease;
+}
+.btn-outline-gold:hover {
+  background-color: var(--primary-gold) !important;
+  color: white !important;
+}
+.border-dashed {
+  border-top-style: dashed !important;
+  border-top-width: 1px !important;
+  border-top-color: rgba(188, 145, 81, 0.2) !important;
 }
 </style>

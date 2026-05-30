@@ -36,6 +36,16 @@ if (state.token) {
 export const useAuth = () => {
     const login = async (credentials) => {
         const response = await axios.post('/api/login', credentials);
+        if (response.data.mfa_required) {
+            return response.data;
+        }
+        setToken(response.data.access_token);
+        setUser(response.data.user);
+        return response.data;
+    };
+
+    const verifyOtp = async (data) => {
+        const response = await axios.post('/api/login/verify-otp', data);
         setToken(response.data.access_token);
         setUser(response.data.user);
         return response.data;
@@ -69,6 +79,7 @@ export const useAuth = () => {
     return {
         state: readonly(state),
         login,
+        verifyOtp,
         register,
         logout,
         fetchUser,

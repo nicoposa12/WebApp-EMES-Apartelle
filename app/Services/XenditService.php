@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -28,7 +29,7 @@ class XenditService
                 'description' => 'Reservation: ' . $data['room_type'] . ' - Room #' . $data['room_number'],
                 'amount' => (float) $data['total_amount'],
                 'currency' => 'PHP',
-                'success_redirect_url' => env('XENDIT_SUCCESS_URL', env('APP_URL') . '/booking/success'),
+                'success_redirect_url' => env('XENDIT_SUCCESS_URL', env('APP_URL') . '/booking/success') . '?res_id=' . $data['reservation_id'],
                 'failure_redirect_url' => env('XENDIT_CANCEL_URL', env('APP_URL') . '/rooms'),
                 'customer' => [
                     'given_names' => $data['customer_name'] ?? 'Guest',
@@ -61,6 +62,7 @@ class XenditService
 
             Log::info('Xendit Invoice Request:', ['payload' => $payload]);
 
+            /** @var \Illuminate\Http\Client\Response $response */
             $response = Http::withBasicAuth($this->apiKey, '')
                 ->timeout(30)
                 ->post($this->baseUrl . '/v2/invoices', $payload);
@@ -90,6 +92,29 @@ class XenditService
                 'status' => 'error',
                 'message' => $e->getMessage()
             ];
+        }
+    }
+
+    /**
+     * Get invoice status using the Invoice ID.
+     */
+    public function getInvoice($invoiceId)
+    {
+        try {
+            /** @var \Illuminate\Http\Client\Response $response */
+            $response = Http::withBasicAuth($this->apiKey, '')
+                ->timeout(30)
+                ->get($this->baseUrl . '/v2/invoices/' . $invoiceId);
+
+            if ($response->successful()) {
+                return $response->json();
+            }
+
+            Log::error('Xendit Invoice Fetch Failed (HTTP ' . $response->status() . '): ' . $response->body());
+            return null;
+        } catch (\Exception $e) {
+            Log::error('Xendit Invoice Fetch Exception: ' . $e->getMessage());
+            return null;
         }
     }
 }

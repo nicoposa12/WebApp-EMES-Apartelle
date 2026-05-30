@@ -84,5 +84,12 @@
             Thank you for your business!
         </div>
     </div>
+    <script>
+        if (window.location.search.includes('print=true')) {
+            window.onload = function() {
+                window.print();
+            }
+        }
+    </script>
 </body>
 </html>

@@ -17,6 +17,10 @@ class Reservation extends Model
         'total_amount',
         'status',
         'payment_status',
+        'xendit_invoice_id',
+        'payment_option',
+        'downpayment_amount',
+        'cancellation_reason',
     ];
 
     public function user()
@@ -32,5 +36,15 @@ class Reservation extends Model
     public function payments()
     {
         return $this->hasMany(Payment::class);
+    }
+
+    public function review()
+    {
+        return $this->hasOne(Review::class);
+    }
+
+    public function disputes()
+    {
+        return $this->hasMany(Dispute::class);
     }
 }

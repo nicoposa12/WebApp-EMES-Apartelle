@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules;
 use Illuminate\Support\Facades\Storage;
+use Carbon\Carbon;
 
 class AuthController extends Controller
 {
@@ -61,13 +62,78 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        if (!Auth::attempt($request->only('email', 'password'))) {
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json([
                 'message' => 'Invalid login details'
             ], 401);
         }
 
-        $user = User::where('email', $request->email)->firstOrFail();
+        // Bypass Multi-Factor Authentication for Administrator and Staff accounts
+        if (in_array($user->role, ['admin', 'staff'])) {
+            $token = $user->createToken('auth_token')->plainTextToken;
+            return response()->json([
+                'access_token' => $token,
+                'token_type' => 'Bearer',
+                'user' => $user,
+            ]);
+        }
+
+        // Generate a secure 6-digit numeric OTP code
+        $otp = str_pad(random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
+
+        // Save OTP and expiration time on user model
+        $user->otp_code = $otp;
+        $user->otp_expires_at = Carbon::now()->addMinutes(10);
+        $user->save();
+
+        try {
+            // Dispatch Email Notification to user
+            $user->notify(new \App\Notifications\SendOTPNotification($otp));
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('OTP Email Send Failed: ' . $e->getMessage());
+            // Proactively report in response if mailer is not available (useful for developer testing)
+            return response()->json([
+                'message' => 'Credentials verified, but failed to send verification email. Please check server mail configurations.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+
+        return response()->json([
+            'mfa_required' => true,
+            'email' => $request->email,
+            'message' => 'A verification code has been sent to your email address.'
+        ]);
+    }
+
+    public function verifyOtp(Request $request)
+    {
+        $request->validate([
+            'email' => ['required', 'string', 'email'],
+            'otp' => ['required', 'string', 'size:6'],
+        ]);
+
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user || !$user->otp_code || $user->otp_code !== $request->otp) {
+            return response()->json([
+                'message' => 'Invalid verification code.'
+            ], 422);
+        }
+
+        if (Carbon::now()->greaterThan($user->otp_expires_at)) {
+            return response()->json([
+                'message' => 'Verification code has expired.'
+            ], 422);
+        }
+
+        // Clear OTP columns
+        $user->otp_code = null;
+        $user->otp_expires_at = null;
+        $user->save();
+
+        // Create Sanctum access token
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([

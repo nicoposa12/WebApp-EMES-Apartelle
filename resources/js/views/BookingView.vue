@@ -32,11 +32,51 @@ const booking = ref({
     email: state.user?.email || '',
     phone: state.user?.phone || '',
     address: state.user?.address || '',
-    paymentMethod: 'paymongo', // Default
+    paymentOption: 'full', // Default to full payment
 });
 
 const rooms = ref([]);
 const loading = ref(true);
+const bookedDates = ref([]);
+
+const fetchBookedDates = async () => {
+    try {
+        let url = '/api/rooms/booked-dates';
+        if (booking.value.roomId) {
+            url = `/api/rooms/${booking.value.roomId}/booked-dates`;
+        }
+        
+        const response = await axios.get(url);
+        
+        if (booking.value.roomId) {
+            // Room specific: just use the dates directly
+            bookedDates.value = response.data;
+        } else {
+            // Global: find dates where all rooms (Total: 4) are booked
+            // We group reservations by date and see if count >= 4
+            const dateCounts = {};
+            response.data.forEach(res => {
+                let start = new Date(res.check_in);
+                let end = new Date(res.check_out);
+                for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
+                    let dStr = d.toISOString().split('T')[0];
+                    dateCounts[dStr] = (dateCounts[dStr] || 0) + 1;
+                }
+            });
+
+            const fullyBookedRanges = [];
+            Object.keys(dateCounts).forEach(dStr => {
+                if (dateCounts[dStr] >= 4) {
+                    fullyBookedRanges.push({ check_in: dStr, check_out: dStr });
+                }
+            });
+            bookedDates.value = fullyBookedRanges;
+        }
+    } catch (err) {
+        console.error("Error fetching booked dates", err);
+    }
+};
+
 const fetchRooms = async () => {
     loading.value = true;
     try {
@@ -54,8 +94,8 @@ const fetchRooms = async () => {
             booking.value.roomId = '';
         }
 
-        // Auto-select first available room if none selected
-        if (!booking.value.roomId && rooms.value.length > 0) {
+        // Auto-select first available room if none selected and dates are picked
+        if (!booking.value.roomId && rooms.value.length > 0 && booking.value.checkIn) {
             booking.value.roomId = rooms.value[0].id;
         }
     } catch (err) {
@@ -66,7 +106,10 @@ const fetchRooms = async () => {
     }
 };
 
-onMounted(fetchRooms);
+onMounted(() => {
+    fetchRooms();
+    fetchBookedDates();
+});
 
 // Watch for date changes to update available rooms
 watch(() => [booking.value.checkIn, booking.value.checkOut], () => {
@@ -99,6 +142,11 @@ watch(() => booking.value.guests, (newGuests) => {
     }
 });
 
+// Watch for room change to update booked dates
+watch(() => booking.value.roomId, (newId) => {
+    if (newId) fetchBookedDates();
+});
+
 const selectedRoom = computed(() => {
     return rooms.value.find(r => r.id === parseInt(booking.value.roomId));
 });
@@ -117,9 +165,9 @@ const getRoomImage = (room) => {
     
     // Fallback based on type keywords
     const type = room.room_type.toLowerCase();
-    if (type.includes('suite')) return 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=800&q=80';
-    if (type.includes('deluxe')) return 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=800&q=80';
-    return 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=800&q=80';
+    if (type.includes('suite')) return '/images/unsplash/suite-room.jpg';
+    if (type.includes('deluxe')) return '/images/unsplash/deluxe-room.jpg';
+    return '/images/unsplash/standard-room.jpg';
 };
 
 const totalNights = computed(() => {
@@ -142,6 +190,26 @@ const validateStep = (step) => {
         if (!booking.value.checkOut) return "Please select a Check-out date.";
         if (totalNights.value <= 0) return "Invalid date range selected.";
         if (!booking.value.roomId) return "Please select a Room.";
+        
+        // Check for booked dates overlap
+        if (bookedDates.value.length > 0) {
+            const start = new Date(booking.value.checkIn);
+            const end = new Date(booking.value.checkOut);
+            start.setHours(0, 0, 0, 0);
+            end.setHours(0, 0, 0, 0);
+
+            const isOverlapping = bookedDates.value.some(range => {
+                const bStart = new Date(range.check_in);
+                const bEnd = new Date(range.check_out);
+                bStart.setHours(0, 0, 0, 0);
+                bEnd.setHours(0, 0, 0, 0);
+                return start < bEnd && end > bStart;
+            });
+
+            if (isOverlapping) {
+                return "The selected room is already booked for one or more dates in your range.";
+            }
+        }
         
         // Check max occupancy
         if (selectedRoom.value && booking.value.guests > selectedRoom.value.max_occupancy) {
@@ -185,7 +253,7 @@ const handleBooking = async () => {
             icon: 'error',
             title: 'Account Suspended',
             text: 'Your account is suspended and cannot perform bookings. Please contact support.',
-            confirmButtonColor: '#d33'
+            confirmButtonColor: '#dc3545'
         });
         return;
     }
@@ -212,7 +280,8 @@ const handleBooking = async () => {
             user_id: state.user.id,
             room_id: booking.value.roomId,
             check_in: booking.value.checkIn,
-            check_out: booking.value.checkOut
+            check_out: booking.value.checkOut,
+            payment_option: booking.value.paymentOption
         };
 
         const response = await axios.post('/api/reservations', payload);
@@ -301,6 +370,7 @@ const formatToYMD = (date) => {
                                         <CalendarPicker 
                                           v-model="booking.checkIn" 
                                           :min-date="formatToYMD(new Date())" 
+                                          :disabled-dates="bookedDates"
                                         />
                                         <input type="date" class="form-control form-control-custom mt-3 border-0 bg-light text-center" v-model="booking.checkIn">
                                     </div>
@@ -312,6 +382,7 @@ const formatToYMD = (date) => {
                                          <CalendarPicker 
                                           v-model="booking.checkOut" 
                                           :min-date="booking.checkIn || formatToYMD(new Date())" 
+                                          :disabled-dates="bookedDates"
                                         />
                                         <input type="date" class="form-control form-control-custom mt-3 border-0 bg-light text-center" v-model="booking.checkOut">
                                     </div>
@@ -454,71 +525,62 @@ const formatToYMD = (date) => {
                     <!-- Step 3: Payment -->
                     <div v-if="currentStep === 3" class="booking-section animate-fade-up">
                         <div class="card border-0 shadow-sm rounded-4 p-4 p-md-5 mb-4 booking-main-card">
-                            <h2 class="serif-font h3 mb-4 text-secondary-dark">Payment Method</h2>
-                            <p class="text-muted mb-4 small mb-5">Select your preferred payment method. You will be redirected to PayMongo's secure portal to complete the transaction.</p>
-                            
-                            <div class="payment-methods row g-3">
-                                <!-- GCash Option -->
+                            <!-- Payment Option Selection -->
+                            <h2 class="serif-font h3 mb-4 text-secondary-dark">Payment Option</h2>
+                            <div class="payment-options row g-3 mb-5">
+                                <!-- Full Payment Option -->
                                 <div class="col-md-6">
                                     <div 
-                                        class="payment-card-method p-4 border rounded-4 h-100" 
-                                        :class="{ 'active': booking.paymentMethod === 'gcash' }"
-                                        @click="booking.paymentMethod = 'gcash'"
+                                        class="payment-card-method p-4 border rounded-4 h-100 cursor-pointer" 
+                                        :class="{ 'active': booking.paymentOption === 'full' }"
+                                        @click="booking.paymentOption = 'full'"
                                     >
                                         <div class="d-flex justify-content-between align-items-start mb-3">
                                             <div class="icon-box-gold">
                                                 <i class="bi bi-wallet2 fs-4"></i>
                                             </div>
-                                            <div v-if="booking.paymentMethod === 'gcash'" class="check-circle animate-pop">
+                                            <div v-if="booking.paymentOption === 'full'" class="check-circle animate-pop">
                                                 <i class="bi bi-check-circle-fill text-gold fs-5"></i>
                                             </div>
                                         </div>
-                                        <h6 class="fw-bold mb-1">GCash</h6>
-                                        <p class="small text-muted mb-0">Faster check-outs with GCash</p>
+                                        <h6 class="fw-bold mb-1">Full Payment</h6>
+                                        <p class="small text-muted mb-0">Pay 100% of the total amount now (₱{{ formatPrice(totalPrice) }})</p>
                                     </div>
                                 </div>
 
-                                <!-- Maya Option -->
+                                <!-- Half Downpayment Option -->
                                 <div class="col-md-6">
                                     <div 
-                                        class="payment-card-method p-4 border rounded-4 h-100" 
-                                        :class="{ 'active': booking.paymentMethod === 'maya' }"
-                                        @click="booking.paymentMethod = 'maya'"
+                                        class="payment-card-method p-4 border rounded-4 h-100 cursor-pointer" 
+                                        :class="{ 'active': booking.paymentOption === 'half' }"
+                                        @click="booking.paymentOption = 'half'"
                                     >
                                         <div class="d-flex justify-content-between align-items-start mb-3">
                                             <div class="icon-box-gold">
-                                                <i class="bi bi-phone fs-4"></i>
+                                                <i class="bi bi-cash-stack fs-4"></i>
                                             </div>
-                                            <div v-if="booking.paymentMethod === 'maya'" class="check-circle animate-pop">
+                                            <div v-if="booking.paymentOption === 'half'" class="check-circle animate-pop">
                                                 <i class="bi bi-check-circle-fill text-gold fs-5"></i>
                                             </div>
                                         </div>
-                                        <h6 class="fw-bold mb-1">Maya</h6>
-                                        <p class="small text-muted mb-0">Safe & secure digital wallet</p>
+                                        <h6 class="fw-bold mb-1">50% Downpayment</h6>
+                                        <p class="small text-muted mb-0">Pay 50% now (₱{{ formatPrice(totalPrice / 2) }}) and settle the rest at the hotel</p>
                                     </div>
                                 </div>
+                            </div>
 
-                                <!-- Card Option -->
-                                <div class="col-md-12">
-                                    <div 
-                                        class="payment-card-method p-4 border rounded-4 h-100" 
-                                        :class="{ 'active': booking.paymentMethod === 'card' }"
-                                        @click="booking.paymentMethod = 'card'"
-                                    >
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <div class="d-flex align-items-center gap-3">
-                                                <div class="icon-box-gold">
-                                                    <i class="bi bi-credit-card fs-4"></i>
-                                                </div>
-                                                <div>
-                                                    <h6 class="fw-bold mb-1">Credit / Debit Card</h6>
-                                                    <p class="small text-muted mb-0">Visa, Mastercard, JCB supported</p>
-                                                </div>
-                                            </div>
-                                            <div v-if="booking.paymentMethod === 'card'" class="check-circle animate-pop">
-                                                <i class="bi bi-check-circle-fill text-gold fs-5"></i>
-                                            </div>
-                                        </div>
+                            <!-- Secure Payment Redirection Banner -->
+                            <div class="pt-4 border-top mt-5">
+                                <div class="alert alert-info border-0 shadow-sm d-flex align-items-start gap-3 rounded-4 p-4 mb-0">
+                                    <div class="icon-box-gold mt-1 flex-shrink-0" style="background: rgba(188, 145, 81, 0.1); width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #BC9151;">
+                                        <i class="bi bi-shield-lock-fill fs-4"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="fw-bold text-secondary-dark mb-1">Secure External Payment</h6>
+                                        <p class="small text-muted mb-0" style="line-height: 1.6;">
+                                            To complete your booking, you will be redirected to Xendit's secure payment portal. 
+                                            There, you can choose your preferred payment method, including <strong>GCash</strong>, <strong>Maya</strong>, or <strong>Credit/Debit Card</strong> (Visa/Mastercard/JCB).
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -529,7 +591,7 @@ const formatToYMD = (date) => {
                                 </button>
                                 <button @click="handleBooking" :disabled="loading || isSuspended" class="btn btn-gold flex-grow-2 w-100 py-3 text-uppercase fw-bold letter-spacing-wide shadow-none continue-btn">
                                     <template v-if="isSuspended">Account Suspended</template>
-                                    <template v-else>{{ loading ? 'Processing...' : `Secure Payment - ₱${formatPrice(totalPrice)}` }}</template>
+                                    <template v-else>{{ loading ? 'Processing...' : `Secure Payment - ₱${formatPrice(booking.paymentOption === 'half' ? totalPrice / 2 : totalPrice)}` }}</template>
                                 </button>
                             </div>
                         </div>
@@ -566,12 +628,20 @@ const formatToYMD = (date) => {
                                 </div>
                                 
                                 <div class="total-section mt-4 pt-4 border-top">
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
-                                        <span class="h6 mb-0 text-muted">Estimated Total</span>
-                                        <span class="h4 mb-0 serif-font text-gold fw-bold">₱{{ formatPrice(totalPrice) }}</span>
-                                    </div>
-                                    <p class="small text-muted text-center mt-3">Taxes and fees included</p>
-                                </div>
+                                     <div class="d-flex justify-content-between align-items-center mb-1">
+                                         <span class="h6 mb-0 text-muted">Total Room Rate</span>
+                                         <span class="h5 mb-0 serif-font text-dark fw-bold">₱{{ formatPrice(totalPrice) }}</span>
+                                     </div>
+                                     <div v-if="booking.paymentOption === 'half'" class="d-flex justify-content-between align-items-center mb-1 text-gold">
+                                         <span class="small fw-bold">50% Downpayment Due Now</span>
+                                         <span class="h5 mb-0 serif-font fw-bold">₱{{ formatPrice(totalPrice / 2) }}</span>
+                                     </div>
+                                     <div v-if="booking.paymentOption === 'half'" class="d-flex justify-content-between align-items-center mb-1 text-muted">
+                                         <span class="x-small fw-bold">Pay at Hotel Remaining</span>
+                                         <span class="small serif-font fw-bold">₱{{ formatPrice(totalPrice / 2) }}</span>
+                                     </div>
+                                     <p class="small text-muted text-center mt-3">Taxes and fees included</p>
+                                 </div>
                             </div>
                         </div>
                         

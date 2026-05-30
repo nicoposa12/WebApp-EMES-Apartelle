@@ -4,48 +4,47 @@
     <div class="auth-bg-overlay"></div>
 
     <!-- Back to Home Button -->
-    <router-link to="/" class="position-absolute top-0 start-0 m-4 text-white text-decoration-none z-3 d-flex align-items-center gap-2 hover-opacity">
-      <i class="bi bi-arrow-left fs-4 bg-white-glass p-2 rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;"></i>
-      <span class="fw-bold text-uppercase small tracking-wider d-none d-md-inline text-shadow-sm">Back to Home</span>
+    <router-link to="/" class="back-home-link z-3">
+      <i class="bi bi-arrow-left back-icon"></i>
+      <span class="back-label d-none d-md-inline">Back to Home</span>
     </router-link>
     
     <div class="auth-card-container animate-fade-in">
-      <div class="auth-card glass-card shadow-2xl overflow-hidden">
+      <div class="auth-card overflow-hidden">
         <div class="row g-0">
           <!-- Left Branding Section -->
-          <div class="col-lg-4 d-none d-lg-flex bg-gold-gradient p-4 flex-column justify-content-between text-white">
-            <div class="brand">
-              <img src="/images/EMES logo.png" alt="EME's Apartelle" class="auth-logo mb-3 shadow-sm">
-              <h4 class="serif-font fw-bold mb-0 fs-4">EME's</h4>
-              <p class="small text-uppercase tracking-widest opacity-75" style="font-size: 0.65rem;">Apartelle</p>
-            </div>
-            
-            <div class="branding-content">
-              <h2 class="serif-font fs-2 fw-bold mb-4">Join Us</h2>
-              <div class="step-indicators ps-2 border-start border-white border-opacity-25">
-                <div v-for="n in 3" :key="n" class="step-item mb-3" :class="{ 'active': currentStep >= n-1, 'current': currentStep === n-1 }">
-                  <div class="step-dot transition-all"></div>
-                  <span class="step-label small fw-bold text-uppercase tracking-widest" style="letter-spacing: 2px; font-size: 0.65rem;">
-                    {{ n === 1 ? 'Personal' : n === 2 ? 'Contact' : 'Security' }}
-                  </span>
+          <div class="col-lg-4 d-none d-lg-flex branding-panel flex-column justify-content-between">
+            <div class="branding-inner">
+              <div class="brand mb-auto">
+                <img src="/images/EMES logo.png" alt="EME's Apartelle" class="auth-logo mb-3">
+                <h4 class="serif-font fw-bold mb-0 text-white fs-4">EME's</h4>
+                <p class="brand-sub text-uppercase">Apartelle</p>
+              </div>
+              
+              <div class="branding-content mt-auto">
+                <h2 class="serif-font fs-2 fw-bold mb-4 text-white">Join Us</h2>
+                <div class="step-indicators">
+                  <div v-for="n in 3" :key="n" class="step-item" :class="{ 'active': currentStep >= n-1, 'current': currentStep === n-1 }">
+                    <div class="step-dot"></div>
+                    <span class="step-label">{{ n === 1 ? 'Personal' : n === 2 ? 'Contact' : 'Security' }}</span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div class="footer-note opacity-60 small letter-spacing-wide" style="font-size: 0.7rem;">
-              &copy; 2026 EME's Apartelle.
-            </div>
+            <div class="branding-footer">&copy; 2026 EME's Apartelle.</div>
           </div>
 
           <!-- Right Form Section -->
-          <div class="col-lg-8 p-4 bg-white-glass">
-            <div class="form-header mb-4 border-bottom pb-3">
-              <div class="d-flex justify-content-between align-items-center mb-1">
-                <h2 class="serif-font fw-bold text-secondary-dark mb-0 fs-3">Create Account</h2>
-                <span class="badge bg-gold-subtle text-gold px-3 py-1 rounded-pill small fw-bold text-uppercase tracking-wider" style="font-size: 0.7rem;">Step {{ currentStep + 1 }}/3</span>
+          <div class="col-lg-8 form-section">
+            <div class="form-inner">
+              <div class="form-header mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <h2 class="serif-font fw-bold mb-0 fs-3 form-title">Create Account</h2>
+                  <span class="step-badge">Step {{ currentStep + 1 }}/3</span>
+                </div>
+                <p class="form-subtitle">Please fill in your details to get started.</p>
               </div>
-              <p class="text-muted small">Please fill in your details to get started.</p>
-            </div>
 
             <form @submit.prevent="handleRegister">
               <!-- Transition Group for Steps -->
@@ -53,21 +52,21 @@
                 <!-- Step 0: Personal Details -->
                 <div v-if="currentStep === 0" key="step0">
                   <div class="row g-3">
-                    <div class="col-md-6 custom-input-group">
-                      <label class="form-label text-secondary-dark opacity-75">First Name</label>
-                      <input v-model="form.first_name" type="text" class="form-control-modern py-2" placeholder="John" required>
+                    <div class="col-md-6 field-group">
+                      <label class="field-label">First Name</label>
+                      <input v-model="form.first_name" type="text" class="field-input" placeholder="John" required>
                     </div>
-                    <div class="col-md-6 custom-input-group">
-                      <label class="form-label text-secondary-dark opacity-75">Last Name</label>
-                      <input v-model="form.last_name" type="text" class="form-control-modern py-2" placeholder="Doe" required>
+                    <div class="col-md-6 field-group">
+                      <label class="field-label">Last Name</label>
+                      <input v-model="form.last_name" type="text" class="field-input" placeholder="Doe" required>
                     </div>
-                    <div class="col-md-6 custom-input-group">
-                      <label class="form-label text-secondary-dark opacity-75">Birthdate</label>
-                      <input v-model="form.birthdate" type="date" class="form-control-modern py-2" required>
+                    <div class="col-md-6 field-group">
+                      <label class="field-label">Birthdate</label>
+                      <input v-model="form.birthdate" type="date" class="field-input" required>
                     </div>
-                    <div class="col-md-6 custom-input-group">
-                      <label class="form-label text-secondary-dark opacity-75">Gender</label>
-                      <select v-model="form.gender" class="form-select-modern py-2" required>
+                    <div class="col-md-6 field-group">
+                      <label class="field-label">Gender</label>
+                      <select v-model="form.gender" class="field-input field-select" required>
                         <option value="" disabled selected>Select Gender</option>
                         <option value="male">Male</option>
                         <option value="female">Female</option>
@@ -80,25 +79,25 @@
                 <!-- Step 1: Contact Details -->
                 <div v-else-if="currentStep === 1" key="step1">
                   <div class="row g-3">
-                    <div class="col-md-6 custom-input-group">
-                      <label class="form-label text-secondary-dark opacity-75">Email Address</label>
-                      <input v-model="form.email" type="email" class="form-control-modern py-2" placeholder="john@example.com" required>
+                    <div class="col-md-6 field-group">
+                      <label class="field-label">Email Address</label>
+                      <input v-model="form.email" type="email" class="field-input" placeholder="john@example.com" required>
                     </div>
-                    <div class="col-md-6 custom-input-group">
-                      <label class="form-label text-secondary-dark opacity-75">Phone Number</label>
-                      <input v-model="form.phone" type="tel" class="form-control-modern py-2" placeholder="+63 9xx xxx xxxx" required>
+                    <div class="col-md-6 field-group">
+                      <label class="field-label">Phone Number</label>
+                      <input v-model="form.phone" type="tel" class="field-input" placeholder="+63 9xx xxx xxxx" required>
                     </div>
-                    <div class="col-12 custom-input-group">
-                      <label class="form-label text-secondary-dark opacity-75">Full Address</label>
-                      <input v-model="form.address" type="text" class="form-control-modern py-2" placeholder="House #, Street, Barangay" required>
+                    <div class="col-12 field-group">
+                      <label class="field-label">Full Address</label>
+                      <input v-model="form.address" type="text" class="field-input" placeholder="House #, Street, Barangay" required>
                     </div>
-                    <div class="col-md-6 custom-input-group">
-                      <label class="form-label text-secondary-dark opacity-75">City</label>
-                      <input v-model="form.city" type="text" class="form-control-modern py-2" placeholder="San Pablo City" required>
+                    <div class="col-md-6 field-group">
+                      <label class="field-label">City</label>
+                      <input v-model="form.city" type="text" class="field-input" placeholder="San Pablo City" required>
                     </div>
-                    <div class="col-md-6 custom-input-group">
-                      <label class="form-label text-secondary-dark opacity-75">Zip Code</label>
-                      <input v-model="form.zip_code" type="text" class="form-control-modern py-2" placeholder="4000" required>
+                    <div class="col-md-6 field-group">
+                      <label class="field-label">Zip Code</label>
+                      <input v-model="form.zip_code" type="text" class="field-input" placeholder="4000" required>
                     </div>
                   </div>
                 </div>
@@ -106,25 +105,24 @@
                 <!-- Step 2: Security & Submit -->
                 <div v-else-if="currentStep === 2" key="step2">
                   <div class="row g-3">
-                    <div class="col-12 custom-input-group">
-                      <label class="form-label text-secondary-dark opacity-75">Create Password</label>
-                      <input v-model="form.password" type="password" class="form-control-modern py-2" placeholder="••••••••" required>
+                    <div class="col-12 field-group">
+                      <label class="field-label">Create Password</label>
+                      <input v-model="form.password" type="password" class="field-input" placeholder="••••••••" required>
                       <div class="password-strength mt-2">
                         <div class="strength-bar" :class="passwordStrengthClass"></div>
-                        <span class="small text-muted mt-1 d-block fw-bold" style="font-size: 0.7rem;">{{ passwordStrengthLabel }}</span>
+                        <span class="strength-label">{{ passwordStrengthLabel }}</span>
                       </div>
                     </div>
-                    <div class="col-12 custom-input-group">
-                      <label class="form-label text-secondary-dark opacity-75">Confirm Password</label>
-                      <input v-model="form.password_confirmation" type="password" class="form-control-modern py-2" placeholder="••••••••" required>
+                    <div class="col-12 field-group">
+                      <label class="field-label">Confirm Password</label>
+                      <input v-model="form.password_confirmation" type="password" class="field-input" placeholder="••••••••" required>
                     </div>
                     <div class="col-12">
-                      <div class="form-check custom-check py-1">
-                        <input class="form-check-input" type="checkbox" id="terms" v-model="terms" required>
-                        <label class="form-check-label small text-muted pt-1" style="font-size: 0.8rem;" for="terms">
-                          I agree to the <a href="#" class="text-gold fw-bold text-decoration-none">Terms of Service</a>.
-                        </label>
-                      </div>
+                      <label class="check-group" for="terms">
+                        <input class="check-input" type="checkbox" id="terms" v-model="terms" required>
+                        <span class="check-mark"></span>
+                        <span class="check-label">I agree to the <a href="#" class="action-link">Terms of Service</a>.</span>
+                      </label>
                     </div>
                   </div>
                 </div>
@@ -136,7 +134,7 @@
                   v-if="currentStep > 0" 
                   type="button" 
                   @click="currentStep--" 
-                  class="btn btn-outline-modern flex-grow-1 py-2 px-3 fw-bold hover-lift small"
+                  class="btn-secondary-action flex-grow-1"
                 >
                   <i class="bi bi-arrow-left me-2"></i> Back
                 </button>
@@ -145,7 +143,7 @@
                   v-if="currentStep < 2" 
                   type="button" 
                   @click="validateAndNext" 
-                  class="btn btn-gold-modern flex-grow-2 py-2 px-3 shadow-sm small"
+                  class="btn-primary-action flex-grow-1"
                 >
                   Next Step <i class="bi bi-arrow-right ms-2"></i>
                 </button>
@@ -153,8 +151,9 @@
                 <button 
                   v-else 
                   type="submit" 
-                  class="btn btn-gold-modern flex-grow-2 py-2 px-3 shadow-lg text-uppercase tracking-widest small" 
+                  class="btn-primary-action flex-grow-1" 
                   :disabled="loading"
+                  :class="{ 'is-loading': loading }"
                 >
                   <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
                   {{ loading ? 'Finalizing...' : 'Create Account' }}
@@ -162,23 +161,24 @@
               </div>
 
               <!-- Social Register -->
-              <div class="separator my-3 text-center">
-                <span class="small text-muted px-2 bg-white serif-font fst-italic position-relative z-1" style="font-size: 0.8rem;">Or join with</span>
+              <div class="divider my-3">
+                <span class="divider-text">Or join with</span>
               </div>
 
               <div class="row g-2">
                 <div class="col-12">
-                  <button @click="loginWithGoogle" type="button" class="btn btn-outline-modern w-100 py-2 d-flex align-items-center justify-content-center gap-2 hover-lift">
-                    <img src="https://www.google.com/favicon.ico" width="16" alt="Google"> <span class="small fw-bold">Continue with Google</span>
+                  <button @click="loginWithGoogle" type="button" class="btn-social w-100">
+                    <img src="/images/google-icon.ico" width="16" alt="Google"> <span>Continue with Google</span>
                   </button>
                 </div>
               </div>
 
-              <p class="text-center mt-3 text-muted small" style="font-size: 0.8rem;">
+              <p class="text-center mt-3 footer-text">
                 Already have an account? 
-                <router-link to="/login" class="text-gold fw-bold text-decoration-none hover-underline">Sign In Here</router-link>
+                <router-link to="/login" class="action-link">Sign In Here</router-link>
               </p>
             </form>
+            </div>
           </div>
         </div>
       </div>
@@ -309,20 +309,23 @@ const handleRegister = async () => {
 </script>
 
 <style scoped>
+/* ==========================================
+   AUTH PAGE — LAYOUT
+   ========================================== */
 .auth-page {
   min-height: 100vh;
   position: relative;
   overflow: hidden;
-  background: #0f172a; /* Dark base for contrast */
+  background: #0f172a;
 }
 
 .auth-bg-overlay {
   position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: radial-gradient(circle at top right, rgba(188, 145, 81, 0.15), transparent 40%),
-              radial-gradient(circle at bottom left, rgba(188, 145, 81, 0.1), transparent 40%),
-              url('https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&q=80&w=2000') center/cover;
-  filter: brightness(0.6) saturate(1.2);
+  inset: 0;
+  background: 
+    radial-gradient(circle at 80% 20%, rgba(188, 145, 81, 0.12), transparent 50%),
+    url('/images/unsplash/hotel-lobby.jpg') center/cover;
+  filter: brightness(0.45) saturate(1.1);
   z-index: 1;
 }
 
@@ -330,171 +333,330 @@ const handleRegister = async () => {
   position: relative;
   z-index: 2;
   width: 100%;
-  max-width: 900px;
-  padding: 1.5rem;
+  max-width: 920px;
+  padding: 1.25rem;
 }
 
-.glass-card {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
+.auth-card {
+  background: #fff;
   border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 
+    0 25px 60px -12px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
-.bg-gold-gradient {
-  background: linear-gradient(135deg, #BC9151 0%, #9A7640 100%);
-  position: relative;
-}
-
-.bg-gold-gradient::before {
-  content: '';
+/* ==========================================
+   BACK BUTTON
+   ========================================== */
+.back-home-link {
   position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 86c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zm66-3c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zm-46-45c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zm26 18c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zm16 18c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zM24 62c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zm44-53c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zM42 1c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zm-4 44c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1z' fill='%23ffffff' fill-opacity='0.05' fill-rule='evenodd'/%3E%3C/svg%3E");
+  top: 0; left: 0;
+  margin: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: rgba(255, 255, 255, 0.85);
+  transition: all 0.3s ease;
+}
+.back-home-link:hover { color: #fff; transform: translateX(-2px); }
+
+.back-icon {
+  width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+.back-home-link:hover .back-icon { background: rgba(255, 255, 255, 0.2); }
+
+.back-label {
+  font-size: 0.72rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* ==========================================
+   BRANDING PANEL (LEFT)
+   ========================================== */
+.branding-panel {
+  background: linear-gradient(160deg, #BC9151 0%, #8B6A3D 100%);
+  position: relative;
+  overflow: hidden;
+}
+.branding-panel::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: 
+    radial-gradient(circle at 30% 20%, rgba(255,255,255,0.08), transparent 50%),
+    radial-gradient(circle at 70% 80%, rgba(0,0,0,0.12), transparent 50%);
+  pointer-events: none;
+}
+
+.branding-inner {
+  position: relative; z-index: 1;
+  padding: 2rem 1.75rem;
+  display: flex; flex-direction: column; height: 100%;
 }
 
 .auth-logo {
-  width: 44px;
-  height: 44px;
-  object-fit: contain;
-  border-radius: 10px;
-  background: white;
-  padding: 3px;
+  width: 48px; height: 48px;
+  object-fit: contain; border-radius: 12px;
+  background: white; padding: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.brand-sub {
+  font-size: 0.6rem; letter-spacing: 0.25em;
+  color: rgba(255,255,255,0.65); margin-bottom: 0; font-weight: 600;
+}
+
+.branding-footer {
+  position: relative; z-index: 1;
+  padding: 0 1.75rem 1.5rem;
+  font-size: 0.68rem; color: rgba(255,255,255,0.45); letter-spacing: 0.03em;
 }
 
 /* Step Indicators */
 .step-indicators {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-  margin-top: 1.5rem;
+  display: flex; flex-direction: column;
+  gap: 1rem; margin-top: 0.5rem;
+  padding-left: 0.5rem;
+  border-left: 1px solid rgba(255,255,255,0.2);
 }
 
 .step-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  opacity: 0.4;
+  display: flex; align-items: center;
+  gap: 0.75rem; opacity: 0.4;
   transition: all 0.4s ease;
 }
-
 .step-item.active { opacity: 0.7; }
-.step-item.current { opacity: 1; transform: translateX(10px); }
+.step-item.current { opacity: 1; transform: translateX(8px); }
 
 .step-dot {
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  background: white;
-  box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+  width: 8px; height: 8px; border-radius: 50%;
+  background: rgba(255,255,255,0.7);
+  transition: all 0.4s ease;
+  flex-shrink: 0;
 }
-
 .step-item.current .step-dot {
-  width: 12px; height: 12px;
-  border: 2px solid #BC9151;
+  width: 10px; height: 10px;
   background: white;
+  box-shadow: 0 0 8px rgba(255,255,255,0.6);
 }
 
-/* Form Styling */
-.form-control-modern, .form-select-modern {
-  width: 100%;
-  padding: 0.65rem 1.25rem;
-  background: #f8fafc;
-  border: 1.5px solid #e2e8f0;
+.step-label {
+  font-size: 0.62rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.15em;
+  color: rgba(255,255,255,0.85);
+}
+
+/* ==========================================
+   FORM SECTION (RIGHT)
+   ========================================== */
+.form-section { background: #fff; }
+
+.form-inner { padding: 2rem 2rem; }
+
+.form-title { color: #1A2634; }
+
+.form-subtitle {
+  color: #8896A6; font-size: 0.85rem; margin-bottom: 0;
+}
+
+.step-badge {
+  font-size: 0.68rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: #BC9151; background: rgba(188,145,81,0.1);
+  padding: 0.3rem 0.75rem; border-radius: 20px;
+}
+
+/* ==========================================
+   FIELD STYLING
+   ========================================== */
+.field-label {
+  display: block;
+  font-size: 0.7rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: #1A2634; margin-bottom: 0.5rem;
+  transition: color 0.3s ease;
+}
+.field-group:focus-within .field-label { color: #BC9151; }
+
+.field-input {
+  width: 100%; padding: 0.7rem 1rem;
+  background: #FAFAF8;
+  border: 1.5px solid #E8E3DB;
   border-radius: 10px;
-  color: #1e293b;
-  font-weight: 500;
-  font-size: 0.95rem;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.form-control-modern:focus, .form-select-modern:focus {
-  background: white;
-  border-color: #BC9151;
-  box-shadow: 0 0 0 4px rgba(188, 145, 81, 0.1);
+  color: #1A2634; font-weight: 500;
+  font-size: 0.9rem; font-family: inherit;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   outline: none;
 }
-
-.form-label {
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: #64748b;
-  margin-bottom: 0.5rem;
-  letter-spacing: 0.5px;
+.field-input::placeholder { color: #C4BAA8; font-weight: 400; }
+.field-input:hover { border-color: #D4CCBF; }
+.field-input:focus {
+  background: #fff; border-color: #BC9151;
+  box-shadow: 0 0 0 3px rgba(188, 145, 81, 0.1);
 }
 
-/* Password Strength Bar */
+.field-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23BC9151' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  padding-right: 2.5rem;
+}
+
+/* ==========================================
+   PASSWORD STRENGTH
+   ========================================== */
 .strength-bar {
   height: 4px; border-radius: 2px;
-  background: #e2e8f0;
-  width: 100%; position: relative;
-  overflow: hidden;
+  background: #EBE6DE;
+  width: 100%; position: relative; overflow: hidden;
 }
-
 .strength-bar::after {
   content: ''; position: absolute;
   left: 0; top: 0; height: 100%; width: 0;
-  transition: all 0.5s ease;
+  transition: all 0.5s ease; border-radius: 2px;
 }
-
 .strength-bar.weak::after { width: 33%; background: #ef4444; }
 .strength-bar.medium::after { width: 66%; background: #f59e0b; }
 .strength-bar.strong::after { width: 100%; background: #10b981; }
 
-/* Buttons */
-.btn-gold-modern {
-  background: #BC9151;
-  color: white;
-  border-radius: 12px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  transition: all 0.3s ease;
-  border: none;
+.strength-label {
+  font-size: 0.68rem; font-weight: 600;
+  color: #8896A6; margin-top: 0.35rem; display: block;
 }
 
-.btn-gold-modern:hover {
-  background: #9A7640;
+/* ==========================================
+   CUSTOM CHECKBOX
+   ========================================== */
+.check-group {
+  display: flex; align-items: center;
+  gap: 0.5rem; cursor: pointer; user-select: none;
+}
+.check-input { position: absolute; opacity: 0; width: 0; height: 0; }
+.check-mark {
+  width: 18px; height: 18px;
+  border: 1.5px solid #D4CCBF; border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s ease; flex-shrink: 0; background: #FAFAF8;
+}
+.check-input:checked + .check-mark { background: #BC9151; border-color: #BC9151; }
+.check-input:checked + .check-mark::after {
+  content: ''; width: 5px; height: 9px;
+  border: solid white; border-width: 0 2px 2px 0;
+  transform: rotate(45deg) translateY(-1px);
+}
+.check-input:focus + .check-mark {
+  box-shadow: 0 0 0 3px rgba(188, 145, 81, 0.12);
+  border-color: #BC9151;
+}
+.check-group:hover .check-mark { border-color: #BC9151; }
+.check-label { font-size: 0.8rem; color: #5A6673; font-weight: 500; }
+
+/* ==========================================
+   BUTTONS
+   ========================================== */
+.btn-primary-action {
+  display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #BC9151 0%, #A57F47 100%);
+  color: white; border: none; border-radius: 12px;
+  font-size: 0.78rem; font-weight: 700; font-family: inherit;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.btn-primary-action:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(188, 145, 81, 0.3);
+  box-shadow: 0 8px 24px -4px rgba(188, 145, 81, 0.4);
+}
+.btn-primary-action:active:not(:disabled) { transform: translateY(0); }
+.btn-primary-action:disabled { opacity: 0.65; cursor: not-allowed; }
+.btn-primary-action.is-loading { pointer-events: none; }
+
+.btn-secondary-action {
+  display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: #fff; border: 1.5px solid #EBE6DE;
+  border-radius: 12px; color: #1A2634;
+  font-size: 0.78rem; font-weight: 700; font-family: inherit;
+  cursor: pointer; transition: all 0.25s ease;
+}
+.btn-secondary-action:hover {
+  border-color: #D4CCBF; background: #FDFCFA;
+  transform: translateY(-1px);
 }
 
-.btn-outline-modern {
-  background: transparent;
-  border: 1.5px solid #e2e8f0;
-  color: #64748b;
-  border-radius: 12px;
-  font-weight: 600;
-  transition: all 0.3s ease;
+/* ==========================================
+   DIVIDER
+   ========================================== */
+.divider {
+  display: flex; align-items: center; gap: 1rem;
+}
+.divider::before, .divider::after {
+  content: ''; flex: 1; height: 1px; background: #EBE6DE;
+}
+.divider-text {
+  font-size: 0.75rem; color: #A09585;
+  font-family: var(--font-serif); font-style: italic;
+  font-weight: 400; white-space: nowrap;
 }
 
-.btn-outline-modern:hover {
-  background: #f8fafc;
-  border-color: #cbd5e1;
-  color: #334155;
+/* ==========================================
+   SOCIAL BUTTONS
+   ========================================== */
+.btn-social {
+  display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+  padding: 0.7rem 1rem; background: #fff;
+  border: 1.5px solid #EBE6DE; border-radius: 10px;
+  font-size: 0.82rem; font-weight: 600; font-family: inherit;
+  color: #1A2634; cursor: pointer; transition: all 0.25s ease;
+}
+.btn-social:hover {
+  border-color: #D4CCBF; background: #FDFCFA;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px -2px rgba(0,0,0,0.06);
 }
 
-/* Animations */
-.animate-fade-in {
-  animation: fadeIn 0.8s ease-out;
+/* ==========================================
+   FOOTER TEXT & LINKS
+   ========================================== */
+.footer-text { color: #8896A6; font-size: 0.82rem; }
+.action-link {
+  color: #BC9151; font-weight: 700; text-decoration: none;
+  transition: all 0.2s ease;
 }
+.action-link:hover { color: #9A7640; text-decoration: underline; }
 
+/* ==========================================
+   ANIMATIONS
+   ========================================== */
+.animate-fade-in { animation: fadeIn 0.7s cubic-bezier(0.2, 0.8, 0.2, 1); }
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(20px); }
+  from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-.slide-fade-enter-active {
-  transition: all 0.4s ease-out;
+.slide-fade-enter-active { transition: all 0.4s ease-out; }
+.slide-fade-leave-active { transition: all 0.3s cubic-bezier(1, 0.5, 0.8, 1); }
+.slide-fade-enter-from { transform: translateX(20px); opacity: 0; }
+.slide-fade-leave-to { transform: translateX(-20px); opacity: 0; }
+
+/* ==========================================
+   RESPONSIVE
+   ========================================== */
+@media (max-width: 991.98px) {
+  .form-inner { padding: 2rem 1.5rem; }
+  .auth-card-container { padding: 1rem; }
 }
-.slide-fade-leave-active {
-  transition: all 0.3s cubic-bezier(1, 0.5, 0.8, 1);
-}
-.slide-fade-enter-from {
-  transform: translateX(20px);
-  opacity: 0;
-}
-.slide-fade-leave-to {
-  transform: translateX(-20px);
-  opacity: 0;
+@media (max-width: 575.98px) {
+  .form-inner { padding: 1.5rem 1.25rem; }
 }
 </style>

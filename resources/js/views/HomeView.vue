@@ -59,14 +59,14 @@ const testimonials = ref([
   {
     name: 'RJ Estodillo',
     role: 'Family Vacation',
-    image: 'https://randomuser.me/api/portraits/men/32.jpg',
+    image: '/images/avatars/testimonial-male.jpg',
     text: 'Our family had an amazing stay. The suite was spacious, clean, and had everything we needed. The kids loved it!',
     rating: 5
   },
   {
     name: 'Nico Monderno',
     role: 'Solo Traveler',
-    image: 'https://randomuser.me/api/portraits/women/68.jpg',
+    image: '/images/avatars/testimonial-female.jpg',
     text: 'Best value for money in the area. The breakfast was delicious and the WiFi was fast. Highly recommended!',
     rating: 5
   }
@@ -150,9 +150,9 @@ const getRoomImage = (room) => {
     
     // Fallback images based on room type
     const type = room.room_type.toLowerCase();
-    if (type.includes('suite')) return 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=600&q=80';
-    if (type.includes('deluxe')) return 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=600&q=80';
-    return 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=600&q=80';
+    if (type.includes('suite')) return '/images/unsplash/suite-room.jpg';
+    if (type.includes('deluxe')) return '/images/unsplash/deluxe-room.jpg';
+    return '/images/unsplash/standard-room.jpg';
 };
 const formatIconClass = (icon) => {
   if (!icon) return '';
@@ -286,16 +286,28 @@ const formatIconClass = (icon) => {
           </p>
         </div>
 
-        <div v-if="loadingRooms" class="text-center py-5">
-           <div class="spinner-border text-gold" role="status"></div>
-           <p class="mt-3 text-muted">Loading rooms...</p>
+        <div v-if="loadingRooms" class="row g-4 justify-content-center">
+          <div v-for="n in 3" :key="'skel-' + n" class="col-lg-4 col-md-6">
+            <div class="room-card-premium bg-white rounded-5 overflow-hidden border-0" style="box-shadow: 0 4px 20px rgba(0,0,0,0.04);">
+              <div class="skeleton-image skeleton-shimmer" style="height: 280px;"></div>
+              <div class="p-4 text-center">
+                <div class="skeleton-line skeleton-shimmer mx-auto mb-2" style="width: 50%; height: 10px;"></div>
+                <div class="skeleton-line skeleton-shimmer mx-auto mb-3" style="width: 60%; height: 20px;"></div>
+                <div class="d-flex justify-content-center gap-3 mb-4">
+                  <div class="skeleton-line skeleton-shimmer" style="width: 60px; height: 12px;"></div>
+                  <div class="skeleton-line skeleton-shimmer" style="width: 60px; height: 12px;"></div>
+                </div>
+                <div class="skeleton-btn skeleton-shimmer mx-auto" style="width: 100%; height: 38px; border-radius: 50px;"></div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div v-else class="row g-4 justify-content-center">
           <div v-for="(room, index) in rooms" :key="room.id" class="col-lg-4 col-md-6 animate-fade-up" :style="{ animationDelay: index * 100 + 'ms' }">
             <div class="room-card-premium card-hover h-100 bg-white rounded-5 shadow-sm overflow-hidden border-0">
               <div class="room-card-image">
-                <img :src="getRoomImage(room)" :alt="room.room_type">
+                <img :src="getRoomImage(room)" :alt="room.room_type" loading="lazy">
                 <span class="room-badge" :class="room.status === 'available' ? 'bg-success text-white' : 'bg-danger text-white'">
                     {{ room.status === 'available' ? 'Available' : 'Occupied' }}
                 </span>
@@ -369,7 +381,7 @@ const formatIconClass = (icon) => {
               <div class="quote-icon text-gold fs-1 mb-2">"</div>
               <p class="testimonial-text text-white-50 font-italic small mb-4 line-clamp-4">"{{ testimonial.text }}"</p>
               <div class="testimonial-author d-flex align-items-center gap-3">
-                <img :src="testimonial.image" :alt="testimonial.name" class="testimonial-avatar rounded-circle border border-2 border-gold" width="50" height="50">
+                <img :src="testimonial.image" :alt="testimonial.name" class="testimonial-avatar rounded-circle border border-2 border-gold" width="50" height="50" loading="lazy">
                 <div>
                   <h6 class="testimonial-name text-white mb-0 fw-bold">{{ testimonial.name }}</h6>
                   <span class="testimonial-role text-gold small">{{ testimonial.role }}</span>
@@ -421,7 +433,7 @@ const formatIconClass = (icon) => {
 <style scoped>
 /* ========== HERO SECTION ========== */
 .hero-section {
-  background: url('https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1920&q=80') center/cover no-repeat;
+  background: url('/images/unsplash/hero-resort.jpg') center/cover no-repeat;
   position: relative;
   min-height: 100vh;
   display: flex;
@@ -692,4 +704,41 @@ const formatIconClass = (icon) => {
 .hover-scale { transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
 .hover-scale:hover { transform: scale(1.05); }
 .shadow-gold { box-shadow: 0 10px 30px rgba(188, 145, 81, 0.4); }
+
+/* ========== SKELETON LOADING ========== */
+.skeleton-image {
+    background: #e2e8f0;
+}
+
+.skeleton-line {
+    background: #e2e8f0;
+    border-radius: 8px;
+}
+
+.skeleton-btn {
+    background: #e2e8f0;
+}
+
+.skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+}
+
+.skeleton-shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.5) 50%,
+        transparent 100%
+    );
+    animation: shimmer-sweep 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer-sweep {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
 </style>

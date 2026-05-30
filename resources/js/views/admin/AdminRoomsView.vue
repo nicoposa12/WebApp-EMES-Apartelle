@@ -758,9 +758,9 @@ const statusBadgeClass = (status) => {
 
 const getDefaultImage = (type) => {
     const images = {
-        'Standard': 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=400&q=80',
-        'Deluxe': 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=400&q=80',
-        'Suite': 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=400&q=80'
+        'Standard': '/images/unsplash/standard-room.jpg',
+        'Deluxe': '/images/unsplash/deluxe-room.jpg',
+        'Suite': '/images/unsplash/suite-room.jpg'
     };
     return images[type.split(' ')[0]] || images['Standard'];
 };

@@ -87,11 +87,11 @@ const handleAdminLogin = async () => {
       password: form.password
     });
     
-    if (response.user && response.user.role !== 'admin') {
+    if (response.user && !['admin', 'staff'].includes(response.user.role)) {
       // If a guest accidentally tries to log in here, log them out immediately
       const { logout: forceLogout } = useAuth();
       await forceLogout();
-      throw new Error('Access denied. This portal is for administrative use only.');
+      throw new Error('Access denied. This portal is for administrative and staff use only.');
     }
 
     Swal.fire({

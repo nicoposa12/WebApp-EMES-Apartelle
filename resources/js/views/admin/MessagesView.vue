@@ -453,7 +453,7 @@ const suspendGuest = () => {
     },
     inputPlaceholder: 'Select a reason for suspension',
     showCancelButton: true,
-    confirmButtonColor: '#d33',
+    confirmButtonColor: '#dc3545',
     cancelButtonColor: '#718096',
     confirmButtonText: 'Suspend Now',
     inputValidator: (value) => {
@@ -491,7 +491,7 @@ const confirmDeleteChat = async () => {
     text: "This will remove the conversation for you. This action cannot be undone.",
     icon: 'warning',
     showCancelButton: true,
-    confirmButtonColor: '#d33',
+    confirmButtonColor: '#dc3545',
     cancelButtonColor: '#718096',
     confirmButtonText: 'Yes, delete it'
   });
@@ -718,9 +718,9 @@ const openImageModal = (url) => {
 const getRoomImage = (room) => {
   if (room.image) return room.image;
   const type = room.room_type.toLowerCase();
-  if (type.includes('suite')) return 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=100&q=80';
-  if (type.includes('deluxe')) return 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=100&q=80';
-  return 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=100&q=80';
+  if (type.includes('suite')) return '/images/unsplash/suite-room.jpg';
+  if (type.includes('deluxe')) return '/images/unsplash/deluxe-room.jpg';
+  return '/images/unsplash/standard-room.jpg';
 };
 
 onMounted(() => {

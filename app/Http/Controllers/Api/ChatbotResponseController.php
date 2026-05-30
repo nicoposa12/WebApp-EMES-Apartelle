@@ -18,6 +18,8 @@ class ChatbotResponseController extends Controller
         $request->validate([
             'trigger' => 'required|string',
             'response' => 'required|string',
+            'follow_up_question' => 'nullable|string',
+            'suggested_triggers' => 'nullable|string',
             'match_type' => 'required|in:exact,contains',
             'is_active' => 'boolean'
         ]);
@@ -39,6 +41,8 @@ class ChatbotResponseController extends Controller
         $request->validate([
             'trigger' => 'required|string',
             'response' => 'required|string',
+            'follow_up_question' => 'nullable|string',
+            'suggested_triggers' => 'nullable|string',
             'match_type' => 'required|in:exact,contains',
             'is_active' => 'boolean'
         ]);

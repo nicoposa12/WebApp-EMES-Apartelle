@@ -33,16 +33,19 @@ class XenditWebhookController extends Controller
             if ($externalId) {
                 $reservation = Reservation::find($externalId);
                 if ($reservation) {
+                    $paymentStatus = ($reservation->payment_option === 'half') ? 'partially_paid' : 'paid';
                     $reservation->update([
                         'status' => 'confirmed',
-                        'payment_status' => 'paid',
+                        'payment_status' => $paymentStatus,
                     ]);
+
+                    $paidAmount = $payload['paid_amount'] ?? ($reservation->payment_option === 'half' ? $reservation->downpayment_amount : $reservation->total_amount);
 
                     Payment::create([
                         'reservation_id' => $reservation->id,
-                        'paymongo_payment_id' => $paymentId, // We'll keep using this column for now or rename later
-                        'amount' => $payload['paid_amount'] ?? $reservation->total_amount,
-                        'method' => $payload['payment_method'] ?? 'Xendit',
+                        'paymongo_payment_id' => $paymentId, 
+                        'amount' => $paidAmount,
+                        'method' => $payload['payment_channel'] ?? ($payload['payment_method'] ?? 'Xendit'),
                         'status' => 'Succeeded',
                     ]);
 

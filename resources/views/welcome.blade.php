@@ -68,7 +68,7 @@
     <body>
         <!-- Loading Spinner (visible before Vue mounts) -->
         <div id="app-loader" class="app-loader">
-            <img src="/images/EMES logo.png" alt="EME's" class="app-loader-logo">
+            <img src="/images/emes-logo.png" alt="EME's" class="app-loader-logo">
             <div class="app-loader-spinner"></div>
             <div class="app-loader-text">Loading</div>
         </div>

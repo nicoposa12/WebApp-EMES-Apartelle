@@ -10,7 +10,7 @@
         <!-- Logo -->
         <router-link class="navbar-brand d-flex align-items-center gap-3" to="/">
           <div class="brand-logo-wrapper p-1 rounded-3 bg-white shadow-sm">
-             <img src="/images/EMES logo.png" alt="EME's Apartelle" class="brand-logo" width="42" height="42">
+             <img src="/images/emes-logo.png" alt="EME's Apartelle" class="brand-logo" width="42" height="42">
           </div>
           <div class="d-flex flex-column lh-1">
             <span class="brand-name" :class="isScrolled ? 'text-dark' : 'text-white text-shadow-sm'">EME's</span>
@@ -114,8 +114,8 @@
                   <li><h6 class="dropdown-header small text-uppercase tracking-wider text-muted py-2">Account</h6></li>
                   <li><router-link class="dropdown-item rounded-3 py-2 small fw-bold" to="/profile"><i class="bi bi-person me-2 text-gold"></i> My Profile</router-link></li>
                   <li><router-link class="dropdown-item rounded-3 py-2 small fw-bold" to="/my-bookings"><i class="bi bi-calendar-event me-2 text-gold"></i> My Bookings</router-link></li>
-                  <li v-if="state.user?.role === 'admin'"><hr class="dropdown-divider bg-light my-2"></li>
-                  <li v-if="state.user?.role === 'admin'"><router-link class="dropdown-item rounded-3 py-2 small fw-bold text-primary" to="/admin"><i class="bi bi-speedometer2 me-2"></i> Admin Panel</router-link></li>
+                  <li v-if="state.user?.role === 'admin' || state.user?.role === 'staff'"><hr class="dropdown-divider bg-light my-2"></li>
+                  <li v-if="state.user?.role === 'admin' || state.user?.role === 'staff'"><router-link class="dropdown-item rounded-3 py-2 small fw-bold text-primary" to="/admin"><i class="bi bi-speedometer2 me-2"></i> {{ state.user?.role === 'admin' ? 'Admin Panel' : 'Staff Panel' }}</router-link></li>
                   <li><hr class="dropdown-divider bg-light my-2"></li>
                   <li><button @click="handleLogout" class="dropdown-item rounded-3 py-2 small fw-bold text-danger"><i class="bi bi-box-arrow-right me-2"></i> Sign Out</button></li>
                 </ul>
@@ -163,7 +163,7 @@
           <div class="col-lg-4 col-md-6">
             <div class="d-flex align-items-center gap-3 mb-4">
               <div class="bg-white p-2 rounded-3 d-inline-block">
-                <img src="/images/EMES logo.png" alt="EME's Apartelle" width="40" height="40" class="d-block">
+                <img src="/images/emes-logo.png" alt="EME's Apartelle" width="40" height="40" class="d-block">
               </div>
               <div class="d-flex flex-column lh-1">
                 <span class="brand-name text-white fs-4">EME's</span>
@@ -388,6 +388,7 @@ const getNotificationColorClass = (notif) => {
             return 'notif-theme-account';
         case 'new_booking':
         case 'booking_created':
+        case 'stay_extended':
         default:
             return 'notif-theme-booking';
     }

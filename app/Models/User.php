@@ -70,6 +70,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the trusted devices associated with the user.
+     */
+    public function trustedDevices()
+    {
+        return $this->hasMany(TrustedDevice::class);
+    }
+
+    /**
      * The attributes that should be hidden for serialization.
      *
      * @var list<string>

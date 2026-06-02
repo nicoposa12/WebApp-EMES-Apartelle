@@ -57,8 +57,8 @@ const getRoomImage = (room) => {
     
     // Fallback based on type keywords
     const type = room.room_type.toLowerCase();
-    if (type.includes('suite')) return '/images/unsplash/suite-room.jpg';
-    if (type.includes('deluxe')) return '/images/unsplash/deluxe-room.jpg';
+    if (type.includes('family')) return '/images/unsplash/suite-room.jpg';
+    if (type.includes('barkadahan')) return '/images/unsplash/deluxe-room.jpg';
     return '/images/unsplash/standard-room.jpg';
 };
 
@@ -196,15 +196,20 @@ onMounted(fetchRooms);
                 
                 <div class="room-card-price mb-3">
                   <span class="currency">₱</span>
-                  <span class="price">{{ formatPrice(room.price_per_night) }}</span>
-                  <span class="period">/ night</span>
+                  <span class="price">
+                    {{ formatPrice((room.room_type === 'Family Room' || room.room_type === 'Barkadahan Room') ? room.price_per_head : room.price_per_night) }}
+                  </span>
+                  <span class="period">
+                    {{ (room.room_type === 'Family Room' || room.room_type === 'Barkadahan Room') ? '/ head / night' : '/ night' }}
+                  </span>
                 </div>
                 
                 <!-- Inclusion Icons (Real Amenities if available, otherwise defaults) -->
                 <div class="room-features mb-3">
-                  <div class="feature-pill" title="Max Occupancy">
+                  <div class="feature-pill" title="Occupancy">
                     <i class="bi bi-people-fill"></i> 
-                    <span>{{ room.max_occupancy }} Guests</span>
+                    <span v-if="room.min_occupancy && room.min_occupancy > 1">{{ room.min_occupancy }} to {{ room.max_occupancy }} Guests</span>
+                    <span v-else>{{ room.max_occupancy }} Guests</span>
                   </div>
                   <div class="feature-pill" v-for="amenity in (room.amenities ? room.amenities.slice(0, 2) : [])" :key="amenity.id" :title="amenity.name">
                     <i :class="['bi', amenity.icon]"></i>

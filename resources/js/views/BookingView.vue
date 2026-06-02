@@ -25,7 +25,7 @@ const parseGuests = (guestsStr) => {
 const booking = ref({
     checkIn: route.query.checkIn || '',
     checkOut: route.query.checkOut || '',
-    roomId: '',
+    roomId: route.query.roomId ? parseInt(route.query.roomId) : '',
     guests: parseGuests(route.query.guests),
     firstName: state.user?.first_name || '',
     lastName: state.user?.last_name || '',
@@ -118,37 +118,45 @@ watch(() => [booking.value.checkIn, booking.value.checkOut], () => {
     }
 });
 
-// Watch for room selection to auto-adjust guests based on capacity
-watch(() => booking.value.roomId, (newId) => {
-    if (!newId) return;
-    const room = rooms.value.find(r => r.id === parseInt(newId));
-    if (room) {
+const selectedRoom = computed(() => {
+    return rooms.value.find(r => r.id === parseInt(booking.value.roomId));
+});
+
+// Watch for selectedRoom changes to auto-adjust guests based on capacity and min occupancy
+watch(selectedRoom, (newRoom) => {
+    if (newRoom) {
         // Automatically cap guests based on room occupancy
-        if (booking.value.guests > room.max_occupancy) {
-            booking.value.guests = room.max_occupancy;
+        if (booking.value.guests > newRoom.max_occupancy) {
+            booking.value.guests = newRoom.max_occupancy;
         }
         
-        // Special case for Single rooms to be exactly 1 guest (if desired by logic, otherwise cap is enough)
-        if (room.room_type.toLowerCase().includes('single')) {
+        // Auto adjust booking guests to min_occupancy if it is less than the minimum
+        if (newRoom.min_occupancy && booking.value.guests < newRoom.min_occupancy) {
+            booking.value.guests = newRoom.min_occupancy;
+        }
+        
+        // Special case for Single rooms to be exactly 1 guest
+        if (newRoom.room_type.toLowerCase().includes('single')) {
             booking.value.guests = 1;
         }
     }
 });
 
-// Watch for guest changes to ensure they stay within selected room's capacity
+// Watch for guest changes to ensure they stay within selected room's capacity and minimum occupancy constraints
 watch(() => booking.value.guests, (newGuests) => {
-    if (selectedRoom.value && newGuests > selectedRoom.value.max_occupancy) {
-        booking.value.guests = selectedRoom.value.max_occupancy;
+    if (selectedRoom.value) {
+        if (newGuests > selectedRoom.value.max_occupancy) {
+            booking.value.guests = selectedRoom.value.max_occupancy;
+        }
+        if (selectedRoom.value.min_occupancy && newGuests < selectedRoom.value.min_occupancy) {
+            booking.value.guests = selectedRoom.value.min_occupancy;
+        }
     }
 });
 
 // Watch for room change to update booked dates
 watch(() => booking.value.roomId, (newId) => {
     if (newId) fetchBookedDates();
-});
-
-const selectedRoom = computed(() => {
-    return rooms.value.find(r => r.id === parseInt(booking.value.roomId));
 });
 
 const showRoomModal = ref(false);
@@ -165,8 +173,8 @@ const getRoomImage = (room) => {
     
     // Fallback based on type keywords
     const type = room.room_type.toLowerCase();
-    if (type.includes('suite')) return '/images/unsplash/suite-room.jpg';
-    if (type.includes('deluxe')) return '/images/unsplash/deluxe-room.jpg';
+    if (type.includes('family')) return '/images/unsplash/suite-room.jpg';
+    if (type.includes('barkadahan')) return '/images/unsplash/deluxe-room.jpg';
     return '/images/unsplash/standard-room.jpg';
 };
 
@@ -179,8 +187,40 @@ const totalNights = computed(() => {
     return nights > 0 ? nights : 0;
 });
 
+const maxCheckOutDate = computed(() => {
+    if (!booking.value.checkIn || !bookedDates.value.length) return null;
+    const checkInDate = new Date(booking.value.checkIn);
+    checkInDate.setHours(0, 0, 0, 0);
+
+    let firstNextDate = null;
+    bookedDates.value.forEach(range => {
+        const start = new Date(range.check_in || range.start);
+        start.setHours(0, 0, 0, 0);
+        if (start >= checkInDate) {
+            if (!firstNextDate || start < new Date(firstNextDate)) {
+                firstNextDate = range.check_in || range.start;
+            }
+        }
+    });
+
+    return firstNextDate ? firstNextDate.split(' ')[0] : null;
+});
+
+watch(() => booking.value.checkIn, (newCheckIn) => {
+    if (booking.value.checkOut) {
+        if (newCheckIn && booking.value.checkOut <= newCheckIn) {
+            booking.value.checkOut = '';
+        } else if (maxCheckOutDate.value && booking.value.checkOut > maxCheckOutDate.value) {
+            booking.value.checkOut = '';
+        }
+    }
+});
+
 const totalPrice = computed(() => {
     if (!selectedRoom.value || totalNights.value <= 0) return 0;
+    if (selectedRoom.value.room_type === 'Family Room' || selectedRoom.value.room_type === 'Barkadahan Room') {
+        return selectedRoom.value.price_per_head * booking.value.guests * totalNights.value;
+    }
     return selectedRoom.value.price_per_night * totalNights.value;
 });
 
@@ -281,6 +321,7 @@ const handleBooking = async () => {
             room_id: booking.value.roomId,
             check_in: booking.value.checkIn,
             check_out: booking.value.checkOut,
+            guests: booking.value.guests,
             payment_option: booking.value.paymentOption
         };
 
@@ -382,7 +423,9 @@ const formatToYMD = (date) => {
                                          <CalendarPicker 
                                           v-model="booking.checkOut" 
                                           :min-date="booking.checkIn || formatToYMD(new Date())" 
+                                          :max-date="maxCheckOutDate"
                                           :disabled-dates="bookedDates"
+                                          :is-checkout="true"
                                         />
                                         <input type="date" class="form-control form-control-custom mt-3 border-0 bg-light text-center" v-model="booking.checkOut">
                                     </div>
@@ -398,7 +441,13 @@ const formatToYMD = (date) => {
                                             <select class="form-select form-control-custom py-3" v-model="booking.roomId" style="border-top-right-radius: 0; border-bottom-right-radius: 0;">
                                                 <option value="" disabled>Select a room</option>
                                                 <option v-for="room in rooms" :key="room.id" :value="room.id">
-                                                    {{ room.room_type }} #{{ room.room_number }} - ₱{{ formatPrice(room.price_per_night) }}
+                                                    {{ room.room_type }} #{{ room.room_number }} - 
+                                                    <template v-if="room.room_type === 'Family Room' || room.room_type === 'Barkadahan Room'">
+                                                        ₱{{ formatPrice(room.price_per_head) }}/head/night
+                                                    </template>
+                                                    <template v-else>
+                                                        ₱{{ formatPrice(room.price_per_night) }}/night
+                                                    </template>
                                                 </option>
                                             </select>
                                             <button 
@@ -451,8 +500,10 @@ const formatToYMD = (date) => {
 
                                                                 <div class="pt-3 border-top mt-auto">
                                                                     <div class="d-flex justify-content-between align-items-center">
-                                                                        <small class="text-muted text-uppercase fw-bold">Price per night</small>
-                                                                        <span class="h2 serif-font text-gold mb-0">₱{{ formatPrice(selectedRoom.price_per_night) }}</span>
+                                                                        <small class="text-muted text-uppercase fw-bold">
+                                                                            {{ (selectedRoom.room_type === 'Family Room' || selectedRoom.room_type === 'Barkadahan Room') ? 'Price per head / night' : 'Price per night' }}
+                                                                        </small>
+                                                                        <span class="h2 serif-font text-gold mb-0">₱{{ formatPrice((selectedRoom.room_type === 'Family Room' || selectedRoom.room_type === 'Barkadahan Room') ? selectedRoom.price_per_head : selectedRoom.price_per_night) }}</span>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -465,10 +516,16 @@ const formatToYMD = (date) => {
                                     <div class="col-12">
                                         <label class="form-label-custom">Number of Guests</label>
                                         <select class="form-select form-control-custom py-3" v-model="booking.guests">
-                                            <option :value="1">1 Guest</option>
-                                            <option :value="2" :disabled="selectedRoom && selectedRoom.max_occupancy < 2">2 Guests</option>
-                                            <option :value="3" :disabled="selectedRoom && selectedRoom.max_occupancy < 3">3 Guests</option>
-                                            <option :value="4" :disabled="selectedRoom && selectedRoom.max_occupancy < 4">4+ Guests</option>
+                                            <template v-if="selectedRoom">
+                                                <option v-for="n in selectedRoom.max_occupancy" :key="n" :value="n" :disabled="selectedRoom.min_occupancy && n < selectedRoom.min_occupancy">
+                                                    {{ n }} Guest{{ n > 1 ? 's' : '' }}
+                                                </option>
+                                            </template>
+                                            <template v-else>
+                                                <option v-for="n in 12" :key="n" :value="n">
+                                                    {{ n }} Guest{{ n > 1 ? 's' : '' }}
+                                                </option>
+                                            </template>
                                         </select>
                                     </div>
                                 </div>
@@ -631,6 +688,16 @@ const formatToYMD = (date) => {
                                      <div class="d-flex justify-content-between align-items-center mb-1">
                                          <span class="h6 mb-0 text-muted">Total Room Rate</span>
                                          <span class="h5 mb-0 serif-font text-dark fw-bold">₱{{ formatPrice(totalPrice) }}</span>
+                                     </div>
+                                     <div class="d-flex justify-content-end mb-3" v-if="selectedRoom && totalNights > 0">
+                                         <small class="text-muted italic-text text-end" style="font-size: 0.75rem; font-style: italic;">
+                                             <template v-if="selectedRoom.room_type === 'Family Room' || selectedRoom.room_type === 'Barkadahan Room'">
+                                                 ((₱{{ formatPrice(selectedRoom.price_per_head) }} × {{ booking.guests }} guest{{ booking.guests > 1 ? 's' : '' }}) × {{ totalNights }} night{{ totalNights > 1 ? 's' : '' }})
+                                             </template>
+                                             <template v-else>
+                                                 (₱{{ formatPrice(selectedRoom.price_per_night) }} × {{ totalNights }} night{{ totalNights > 1 ? 's' : '' }})
+                                             </template>
+                                         </small>
                                      </div>
                                      <div v-if="booking.paymentOption === 'half'" class="d-flex justify-content-between align-items-center mb-1 text-gold">
                                          <span class="small fw-bold">50% Downpayment Due Now</span>

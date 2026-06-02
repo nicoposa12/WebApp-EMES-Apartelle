@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\TrustedDevice;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -60,6 +61,7 @@ class AuthController extends Controller
         $request->validate([
             'email' => ['required', 'string', 'email'],
             'password' => ['required', 'string'],
+            'device_fingerprint' => ['nullable', 'string', 'max:128'],
         ]);
 
         $user = User::where('email', $request->email)->first();
@@ -80,12 +82,36 @@ class AuthController extends Controller
             ]);
         }
 
-        // Generate a secure 6-digit numeric OTP code
+        // Check if this device is already trusted (skip MFA for recognized devices)
+        $fingerprint = $request->input('device_fingerprint');
+        if ($fingerprint) {
+            $trustedDevice = TrustedDevice::where('user_id', $user->id)
+                ->where('device_fingerprint', $fingerprint)
+                ->active()
+                ->first();
+
+            if ($trustedDevice) {
+                // Device is recognized — update last used timestamp and skip MFA
+                $trustedDevice->update([
+                    'last_used_at' => Carbon::now(),
+                    'ip_address' => $request->ip(),
+                ]);
+
+                $token = $user->createToken('auth_token')->plainTextToken;
+                return response()->json([
+                    'access_token' => $token,
+                    'token_type' => 'Bearer',
+                    'user' => $user,
+                ]);
+            }
+        }
+
+        // Device not recognized — generate a secure 6-digit numeric OTP code
         $otp = str_pad(random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
 
         // Save OTP and expiration time on user model
         $user->otp_code = $otp;
-        $user->otp_expires_at = Carbon::now()->addMinutes(10);
+        $user->otp_expires_at = Carbon::now()->addSeconds(60);
         $user->save();
 
         try {
@@ -112,6 +138,7 @@ class AuthController extends Controller
         $request->validate([
             'email' => ['required', 'string', 'email'],
             'otp' => ['required', 'string', 'size:6'],
+            'device_fingerprint' => ['nullable', 'string', 'max:128'],
         ]);
 
         $user = User::where('email', $request->email)->first();
@@ -132,6 +159,23 @@ class AuthController extends Controller
         $user->otp_code = null;
         $user->otp_expires_at = null;
         $user->save();
+
+        // Save this device as trusted for 90 days so future logins skip MFA
+        $fingerprint = $request->input('device_fingerprint');
+        if ($fingerprint) {
+            TrustedDevice::updateOrCreate(
+                [
+                    'user_id' => $user->id,
+                    'device_fingerprint' => $fingerprint,
+                ],
+                [
+                    'device_name' => $this->parseDeviceName($request->userAgent()),
+                    'ip_address' => $request->ip(),
+                    'last_used_at' => Carbon::now(),
+                    'expires_at' => Carbon::now()->addDays(90),
+                ]
+            );
+        }
 
         // Create Sanctum access token
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -217,5 +261,46 @@ class AuthController extends Controller
             'message' => 'Profile photo updated successfully',
             'user' => $user,
         ]);
+    }
+
+    /**
+     * Parse a human-readable device name from the User-Agent string.
+     * e.g. "Chrome on Windows", "Safari on macOS", "Firefox on Linux"
+     */
+    private function parseDeviceName(?string $userAgent): string
+    {
+        if (!$userAgent) {
+            return 'Unknown Device';
+        }
+
+        // Detect browser
+        $browser = 'Unknown Browser';
+        if (str_contains($userAgent, 'Edg/')) {
+            $browser = 'Edge';
+        } elseif (str_contains($userAgent, 'OPR/') || str_contains($userAgent, 'Opera')) {
+            $browser = 'Opera';
+        } elseif (str_contains($userAgent, 'Chrome/') && !str_contains($userAgent, 'Edg/')) {
+            $browser = 'Chrome';
+        } elseif (str_contains($userAgent, 'Safari/') && !str_contains($userAgent, 'Chrome/')) {
+            $browser = 'Safari';
+        } elseif (str_contains($userAgent, 'Firefox/')) {
+            $browser = 'Firefox';
+        }
+
+        // Detect OS
+        $os = 'Unknown OS';
+        if (str_contains($userAgent, 'Windows')) {
+            $os = 'Windows';
+        } elseif (str_contains($userAgent, 'Macintosh') || str_contains($userAgent, 'Mac OS')) {
+            $os = 'macOS';
+        } elseif (str_contains($userAgent, 'Linux') && !str_contains($userAgent, 'Android')) {
+            $os = 'Linux';
+        } elseif (str_contains($userAgent, 'Android')) {
+            $os = 'Android';
+        } elseif (str_contains($userAgent, 'iPhone') || str_contains($userAgent, 'iPad')) {
+            $os = 'iOS';
+        }
+
+        return "{$browser} on {$os}";
     }
 }

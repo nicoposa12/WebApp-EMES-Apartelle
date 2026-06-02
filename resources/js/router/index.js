@@ -158,7 +158,7 @@ router.beforeEach((to, from, next) => {
     // Protect Member Routes
     const memberRoutes = ['profile', 'my-bookings', 'notifications', 'booking'];
     if (memberRoutes.includes(to.name) && !isAuthenticated) {
-        return next({ name: 'login' });
+        return next({ name: 'login', query: { redirect: to.fullPath } });
     }
 
     // Redirect authenticated users away from login pages

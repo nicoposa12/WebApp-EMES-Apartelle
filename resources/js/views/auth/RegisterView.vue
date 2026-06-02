@@ -16,7 +16,7 @@
           <div class="col-lg-4 d-none d-lg-flex branding-panel flex-column justify-content-between">
             <div class="branding-inner">
               <div class="brand mb-auto">
-                <img src="/images/EMES logo.png" alt="EME's Apartelle" class="auth-logo mb-3">
+                <img src="/images/emes-logo.png" alt="EME's Apartelle" class="auth-logo mb-3">
                 <h4 class="serif-font fw-bold mb-0 text-white fs-4">EME's</h4>
                 <p class="brand-sub text-uppercase">Apartelle</p>
               </div>

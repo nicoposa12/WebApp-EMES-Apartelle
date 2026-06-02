@@ -43,6 +43,14 @@ const props = defineProps({
   minDate: {
     type: String, // YYYY-MM-DD
     default: () => new Date().toISOString().split('T')[0]
+  },
+  maxDate: {
+    type: String,
+    default: null
+  },
+  isCheckout: {
+    type: Boolean,
+    default: false
   }
 });
 
@@ -113,6 +121,9 @@ const isDisabled = (dateObj) => {
   // Check min date
   if (props.minDate && dStr < props.minDate) return true;
   
+  // Check max date
+  if (props.maxDate && dStr > props.maxDate) return true;
+  
   // Check booked dates
   return isBooked(dateObj);
 };
@@ -127,7 +138,14 @@ const isBooked = (dateObj) => {
     const end = new Date(range.check_out || range.end);
     start.setHours(0, 0, 0, 0);
     end.setHours(0, 0, 0, 0);
-    return d >= start && d <= end;
+    
+    if (props.isCheckout) {
+      // For check-out, a date is disabled if the night before it is occupied
+      return d > start && d <= end;
+    } else {
+      // For check-in, a date is disabled if the night itself is occupied
+      return d >= start && d < end;
+    }
   });
 };
 

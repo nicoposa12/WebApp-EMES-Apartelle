@@ -116,8 +116,10 @@ class RoomController extends Controller
             'room_number' => 'required|string|unique:rooms',
             'room_type' => 'required|string',
             'description' => 'nullable|string',
-            'price_per_night' => 'required|numeric',
+            'price_per_night' => 'required_unless:room_type,Family Room,Barkadahan Room|nullable|numeric',
+            'price_per_head' => 'required_if:room_type,Family Room,Barkadahan Room|nullable|numeric',
             'max_occupancy' => 'required|integer',
+            'min_occupancy' => 'nullable|integer',
             'status' => 'required|in:available,unavailable,maintenance',
             'image' => 'nullable|string',
             'bed_type' => 'nullable|string',
@@ -129,6 +131,11 @@ class RoomController extends Controller
         }
 
         $data = $request->all();
+        if (in_array($data['room_type'] ?? '', ['Family Room', 'Barkadahan Room'])) {
+            $data['price_per_night'] = 0.00;
+        } else {
+            $data['price_per_head'] = 0.00;
+        }
 
         if ($request->hasFile('image_file')) {
             $path = $request->file('image_file')->store('rooms', 'public');
@@ -201,8 +208,10 @@ class RoomController extends Controller
             'room_number' => 'sometimes|required|string|unique:rooms,room_number,' . $id,
             'room_type' => 'sometimes|required|string',
             'description' => 'nullable|string',
-            'price_per_night' => 'sometimes|required|numeric',
+            'price_per_night' => 'sometimes|required_unless:room_type,Family Room,Barkadahan Room|nullable|numeric',
+            'price_per_head' => 'sometimes|required_if:room_type,Family Room,Barkadahan Room|nullable|numeric',
             'max_occupancy' => 'sometimes|required|integer',
+            'min_occupancy' => 'sometimes|required|integer',
             'status' => 'sometimes|required|in:available,unavailable,maintenance',
             'image' => 'nullable|string',
             'bed_type' => 'nullable|string',
@@ -214,6 +223,12 @@ class RoomController extends Controller
         }
 
         $data = $request->all();
+        $roomType = $data['room_type'] ?? $room->room_type;
+        if (in_array($roomType, ['Family Room', 'Barkadahan Room'])) {
+            $data['price_per_night'] = 0.00;
+        } else {
+            $data['price_per_head'] = 0.00;
+        }
 
         if ($request->hasFile('image_file')) {
             // Delete old image if it exists and is a local file

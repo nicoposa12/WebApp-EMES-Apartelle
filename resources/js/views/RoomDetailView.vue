@@ -1,8 +1,9 @@
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue';
+import { ref, reactive, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import Swal from 'sweetalert2';
+import PremiumSwal, { confirm as confirmSwal } from '../utils/sweetalert';
 import { useAuth } from '../store/auth';
 import CalendarPicker from '../components/CalendarPicker.vue';
 
@@ -17,10 +18,18 @@ const error = ref(null);
 const activeImage = ref(-1); // Track active image, -1 is for Main Photo
 const systemSettings = ref({ online_booking: true, maintenance_mode: false });
 
+// Parse guests from query string (e.g. "1 Adult" -> 1)
+const parseGuests = (guestsStr) => {
+  if (!guestsStr) return 1;
+  if (typeof guestsStr === 'number') return guestsStr;
+  const match = String(guestsStr).match(/(\d+)/);
+  return match ? parseInt(match[1]) : 1;
+};
+
 const booking = reactive({
-  check_in: '',
-  check_out: '',
-  guests: 1,
+  check_in: route.query.checkIn || '',
+  check_out: route.query.checkOut || '',
+  guests: parseGuests(route.query.guests),
   payment_option: 'full'
 });
 
@@ -48,8 +57,40 @@ const totalNights = computed(() => {
   return nights > 0 ? nights : 0;
 });
 
+const maxCheckOutDate = computed(() => {
+  if (!booking.check_in || !room.value || !room.value.reservations) return null;
+  const checkInDate = new Date(booking.check_in);
+  checkInDate.setHours(0, 0, 0, 0);
+
+  let firstNextReservation = null;
+  room.value.reservations.forEach(res => {
+    const resStart = new Date(res.check_in);
+    resStart.setHours(0, 0, 0, 0);
+    if (resStart >= checkInDate) {
+      if (!firstNextReservation || resStart < new Date(firstNextReservation.check_in)) {
+        firstNextReservation = res;
+      }
+    }
+  });
+
+  return firstNextReservation ? firstNextReservation.check_in.split(' ')[0] : null;
+});
+
+watch(() => booking.check_in, (newCheckIn) => {
+  if (booking.check_out) {
+    if (newCheckIn && booking.check_out <= newCheckIn) {
+      booking.check_out = '';
+    } else if (maxCheckOutDate.value && booking.check_out > maxCheckOutDate.value) {
+      booking.check_out = '';
+    }
+  }
+});
+
 const subtotal = computed(() => {
   if (!room.value) return 0;
+  if (room.value.room_type === 'Family Room' || room.value.room_type === 'Barkadahan Room') {
+    return totalNights.value * room.value.price_per_head * booking.guests;
+  }
   return totalNights.value * room.value.price_per_night;
 });
 
@@ -62,6 +103,11 @@ const fetchRoom = async () => {
     ]);
     room.value = roomRes.data;
     systemSettings.value = settingsRes.data;
+    
+    // Auto adjust booking guests to min_occupancy if it is less than the minimum
+    if (room.value && room.value.min_occupancy && booking.guests < room.value.min_occupancy) {
+      booking.guests = room.value.min_occupancy;
+    }
   } catch (err) {
     console.error("API Fetch Error", err);
     error.value = "We couldn't retrieve the details for this unit. It may have been decommissioned.";
@@ -88,8 +134,8 @@ const getRoomImage = (room) => {
   
   // Fallback images based on room type
   const type = room.room_type.toLowerCase();
-  if (type.includes('suite')) return '/images/unsplash/suite-room.jpg';
-  if (type.includes('deluxe')) return '/images/unsplash/deluxe-room.jpg';
+  if (type.includes('family')) return '/images/unsplash/suite-room.jpg';
+  if (type.includes('barkadahan')) return '/images/unsplash/deluxe-room.jpg';
   return '/images/unsplash/standard-room.jpg';
 };
 
@@ -181,21 +227,90 @@ const formatReviewDate = (dateStr) => {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 };
 
+const getSuggestedReplies = (review) => {
+  const guestName = review.user?.name || 'Guest';
+  const rating = review.rating || 5;
+  
+  if (rating >= 5) {
+    return [
+      `Thank you so much for the wonderful 5-star review, ${guestName}! We are thrilled to hear that you had a great stay at EME's Apartelle. We look forward to welcoming you back soon!`,
+      `Hi ${guestName}, thank you for your kind words! We are delighted that you enjoyed our clean and comfortable accommodations. Hope to host you again on your next visit!`,
+      `Thank you for choosing EME's Apartelle, ${guestName}! We appreciate your positive feedback and are glad you had a pleasant experience. Safe travels!`
+    ];
+  } else if (rating === 4) {
+    return [
+      `Thank you for the 4-star rating, ${guestName}! We're happy you enjoyed your stay and will continue to refine our service to make your next visit a 5-star experience.`,
+      `Hi ${guestName}, we appreciate your positive review! Thank you for sharing your feedback with us, and we hope to welcome you back to EME's Apartelle soon.`,
+      `Thank you for staying with us, ${guestName}! We are glad you had a good experience and look forward to hosting you again.`
+    ];
+  } else {
+    return [
+      `Dear ${guestName}, thank you for your feedback. We sincerely apologize for the aspects of your stay that did not meet your expectations. We are addressing these concerns to improve our service.`,
+      `Hi ${guestName}, we appreciate you bringing this to our attention. We apologize for any inconvenience caused during your stay and hope to have the opportunity to provide you with a much better experience in the future.`,
+      `Thank you for your review, ${guestName}. We take all guest feedback seriously and are actively working on the areas you highlighted to ensure a more comfortable stay for future guests.`
+    ];
+  }
+};
+
 const handleReplyReview = async (review) => {
-  const { value: replyText } = await Swal.fire({
+  const guestName = review.user?.name || 'Guest';
+  const suggestions = getSuggestedReplies(review);
+  
+  // Build suggestion buttons HTML
+  let suggestionsHtml = '';
+  suggestions.forEach((suggestion) => {
+    // Escape single and double quotes for data-reply
+    const escapedSuggestion = suggestion.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    suggestionsHtml += `
+      <button type="button" class="btn-quick-reply text-start w-100 p-3 mb-2 rounded-3 border-0 transition-all cursor-pointer" data-reply="${escapedSuggestion}">
+        <div class="d-flex align-items-start gap-2">
+          <i class="bi bi-chat-text-fill text-gold mt-1" style="font-size: 0.85rem;"></i>
+          <span class="quick-reply-text text-muted" style="font-size: 0.8rem; line-height: 1.4; font-weight: 500;">
+            ${suggestion}
+          </span>
+        </div>
+      </button>
+    `;
+  });
+
+  const htmlContent = `
+    <div class="text-start">
+      <label for="swal-reply-textarea" class="d-block x-small fw-bold text-uppercase text-muted mb-2 tracking-wider">Respond to ${guestName}'s review</label>
+      <textarea id="swal-reply-textarea" class="reply-textarea w-100 p-3 mb-3" placeholder="Type your official response here... (Min. 5 characters)">${review.admin_reply || ''}</textarea>
+      
+      <div class="suggested-replies-container">
+        <label class="d-block x-small fw-bold text-uppercase text-gold mb-2 tracking-wider">
+          <i class="bi bi-stars me-1"></i> Suggested Replies
+        </label>
+        <div class="suggested-replies-list">
+          ${suggestionsHtml}
+        </div>
+      </div>
+    </div>
+  `;
+
+  const { value: replyText } = await PremiumSwal.fire({
     title: review.admin_reply ? 'Edit Response' : 'Reply to Guest',
-    input: 'textarea',
-    inputLabel: `Respond to ${review.user?.name || 'Guest'}'s review`,
-    inputValue: review.admin_reply || '',
-    inputPlaceholder: 'Type your official response here... (Min. 5 characters)',
-    inputAttributes: {
-      'aria-label': 'Type your official response here'
-    },
+    html: htmlContent,
     showCancelButton: true,
-    confirmButtonColor: '#BC9151',
-    cancelButtonColor: '#718096',
     confirmButtonText: 'Post Response',
-    preConfirm: (value) => {
+    cancelButtonText: 'Cancel',
+    didOpen: (popup) => {
+      const textarea = popup.querySelector('#swal-reply-textarea');
+      const buttons = popup.querySelectorAll('.btn-quick-reply');
+      buttons.forEach(button => {
+        button.addEventListener('click', () => {
+          const reply = button.getAttribute('data-reply');
+          if (textarea) {
+            textarea.value = reply;
+            textarea.focus();
+          }
+        });
+      });
+    },
+    preConfirm: () => {
+      const textarea = Swal.getPopup().querySelector('#swal-reply-textarea');
+      const value = textarea ? textarea.value : '';
       if (!value || value.trim().length < 5) {
         Swal.showValidationMessage('Response must be at least 5 characters long.');
         return false;
@@ -214,7 +329,10 @@ const handleReplyReview = async (review) => {
         icon: 'success',
         title: 'Response Posted!',
         text: 'Your official response has been successfully posted.',
-        confirmButtonColor: '#BC9151'
+        iconColor: '#BC9151',
+        showConfirmButton: false,
+        timer: 2000,
+        timerProgressBar: true
       });
       
       fetchReviews(); // Refresh reviews list
@@ -224,6 +342,41 @@ const handleReplyReview = async (review) => {
         icon: 'error',
         title: 'Posting Failed',
         text: err.response?.data?.message || 'Could not submit your response. Please try again.'
+      });
+    }
+  }
+};
+
+const handleDeleteReply = async (review) => {
+  const result = await confirmSwal({
+    title: 'Delete Response?',
+    text: 'Are you sure you want to delete your official response to this review? This action cannot be undone.',
+    confirmText: 'Yes, Delete It',
+    cancelText: 'Cancel',
+    danger: true
+  });
+
+  if (result.isConfirmed) {
+    try {
+      await axios.delete(`/api/admin/reviews/${review.id}/reply`);
+      
+      Swal.fire({
+        icon: 'success',
+        title: 'Response Deleted!',
+        text: 'Your official response has been successfully deleted.',
+        iconColor: '#BC9151',
+        showConfirmButton: false,
+        timer: 2000,
+        timerProgressBar: true
+      });
+      
+      fetchReviews(); // Refresh reviews list
+    } catch (err) {
+      console.error("Failed to delete response", err);
+      Swal.fire({
+        icon: 'error',
+        title: 'Deletion Failed',
+        text: err.response?.data?.message || 'Could not delete your response. Please try again.'
       });
     }
   }
@@ -306,7 +459,8 @@ onMounted(() => {
              <div class="room-specs-row d-flex gap-3 flex-wrap">
                  <div class="spec-item d-flex align-items-center gap-2 bg-white px-3 py-2 rounded-3 shadow-sm">
                     <i class="bi bi-people-fill text-gold fs-5"></i>
-                    <span class="small fw-bold text-dark">Up to {{ room.max_occupancy }} Guests</span>
+                    <span class="small fw-bold text-dark" v-if="room.min_occupancy && room.min_occupancy > 1">{{ room.min_occupancy }} to {{ room.max_occupancy }} Guests</span>
+                    <span class="small fw-bold text-dark" v-else>Up to {{ room.max_occupancy }} Guests</span>
                  </div>
                  <div class="spec-item d-flex align-items-center gap-2 bg-white px-3 py-2 rounded-3 shadow-sm" v-if="room.bed_type">
                     <i class="bi bi-door-open-fill text-gold fs-5"></i>
@@ -414,18 +568,26 @@ onMounted(() => {
                 <div v-if="review.admin_reply" class="admin-reply-card mt-3 p-3 rounded-3 bg-light border-start border-gold border-3 animate-fade-in text-start">
                   <div class="d-flex align-items-center justify-content-between mb-2">
                     <div class="d-flex align-items-center gap-2">
-                      <div class="rounded-circle bg-gold text-white d-flex align-items-center justify-content-center" style="width: 22px; height: 22px; background-color: var(--primary-gold);">
-                        <i class="bi bi-award-fill" style="font-size: 0.75rem;"></i>
+                      <div class="rounded-circle overflow-hidden d-flex align-items-center justify-content-center bg-white border border-light-subtle" style="width: 24px; height: 24px;">
+                        <img src="/images/eme-logo.jpg" alt="EME's Apartelle Logo" class="w-100 h-100 object-fit-cover">
                       </div>
                       <span class="x-small fw-bold text-secondary-dark text-uppercase tracking-wider">Response from EME's Apartelle</span>
                     </div>
-                    <button 
-                      v-if="state.user?.role === 'admin' || state.user?.role === 'staff'" 
-                      class="btn btn-link text-gold p-0 x-small fw-bold text-decoration-none shadow-none"
-                      @click="handleReplyReview(review)"
-                    >
-                      <i class="bi bi-pencil-square"></i> Edit Response
-                    </button>
+                    <div v-if="state.user?.role === 'admin' || state.user?.role === 'staff'" class="d-flex align-items-center gap-2">
+                      <button 
+                        class="btn btn-link text-gold p-0 x-small fw-bold text-decoration-none shadow-none"
+                        @click="handleReplyReview(review)"
+                      >
+                        <i class="bi bi-pencil-square"></i> Edit
+                      </button>
+                      <span class="text-muted x-small">|</span>
+                      <button 
+                        class="btn btn-link text-danger p-0 x-small fw-bold text-decoration-none shadow-none"
+                        @click="handleDeleteReply(review)"
+                      >
+                        <i class="bi bi-trash"></i> Delete
+                      </button>
+                    </div>
                   </div>
                   <p class="mb-0 text-muted x-small lh-base font-italic">"{{ review.admin_reply }}"</p>
                 </div>
@@ -465,8 +627,12 @@ onMounted(() => {
                <div class="booking-card-body-premium p-4">
                   <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom">
                      <div>
-                        <span class="d-block x-small text-muted text-uppercase fw-bold tracking-widest mb-1">Price per Night</span>
-                        <div class="h4 mb-0 fw-bold text-dark serif-font"><span class="text-gold">₱</span>{{ formatPrice(room.price_per_night) }}</div>
+                        <span class="d-block x-small text-muted text-uppercase fw-bold tracking-widest mb-1">
+                          {{ (room.room_type === 'Family Room' || room.room_type === 'Barkadahan Room') ? 'Price per Head / Night' : 'Price per Night' }}
+                        </span>
+                        <div class="h4 mb-0 fw-bold text-dark serif-font">
+                          <span class="text-gold">₱</span>{{ formatPrice((room.room_type === 'Family Room' || room.room_type === 'Barkadahan Room') ? room.price_per_head : room.price_per_night) }}
+                        </div>
                      </div>
                      <div class="text-end">
                         <span class="badge bg-success-subtle text-success px-3 py-2 rounded-pill small fw-bold">
@@ -512,7 +678,9 @@ onMounted(() => {
                                 <CalendarPicker 
                                   v-model="booking.check_out" 
                                   :min-date="booking.check_in || todayDate" 
+                                  :max-date="maxCheckOutDate"
                                   :disabled-dates="room.reservations || []"
+                                  :is-checkout="true"
                                   @update:modelValue="showCheckOutCalendar = false"
                                 />
                               </div>
@@ -523,7 +691,9 @@ onMounted(() => {
                       <div class="col-12 mt-2">
                         <label class="form-label admin-label mb-1 small fw-bold text-muted text-uppercase tracking-wider">Number of Guests</label>
                         <select class="form-input-premium w-100 px-3 py-2" v-model="booking.guests">
-                          <option v-for="n in room.max_occupancy" :key="n" :value="n">{{ n }} Guest{{ n > 1 ? 's' : '' }}</option>
+                          <option v-for="n in room.max_occupancy" :key="n" :value="n" :disabled="room.min_occupancy && n < room.min_occupancy">
+                            {{ n }} Guest{{ n > 1 ? 's' : '' }}
+                          </option>
                         </select>
                       </div>
                       
@@ -555,7 +725,14 @@ onMounted(() => {
                     <!-- Financial Summary -->
                     <div v-if="totalNights > 0" class="financial-summary mb-4 p-4 rounded-4 bg-gold-lightest border border-gold-light">
                       <div class="d-flex justify-content-between mb-2">
-                        <span class="text-muted small fw-semibold">Room Price × {{ totalNights }} Nights</span>
+                        <span class="text-muted small fw-semibold">
+                          <template v-if="room.room_type === 'Family Room' || room.room_type === 'Barkadahan Room'">
+                            ((₱{{ formatPrice(room.price_per_head) }} × {{ booking.guests }} guest{{ booking.guests > 1 ? 's' : '' }}) × {{ totalNights }} night{{ totalNights > 1 ? 's' : '' }})
+                          </template>
+                          <template v-else>
+                            (₱{{ formatPrice(room.price_per_night) }} × {{ totalNights }} night{{ totalNights > 1 ? 's' : '' }})
+                          </template>
+                        </span>
                         <span class="text-dark small fw-bold">₱{{ formatPrice(subtotal) }}</span>
                       </div>
                       <div class="d-flex justify-content-between mb-2">
@@ -815,5 +992,87 @@ onMounted(() => {
   border-top-style: dashed !important;
   border-top-width: 1px !important;
   border-top-color: rgba(188, 145, 81, 0.2) !important;
+}
+
+/* Suggested Replies styling inside Swal */
+:deep(.reply-container) {
+  text-align: left;
+}
+
+:deep(.reply-textarea) {
+  width: 100%;
+  height: 120px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(188, 145, 81, 0.3);
+  background-color: #ffffff;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-dark);
+  outline: none;
+  transition: all var(--transition-normal);
+}
+
+:deep(.reply-textarea:focus) {
+  border-color: var(--primary-gold);
+  box-shadow: 0 0 0 4px var(--primary-gold-subtle);
+}
+
+:deep(.suggested-title) {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--primary-gold);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-top: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+:deep(.suggested-replies-list) {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+:deep(.btn-quick-reply) {
+  background-color: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+  border-left: 3px solid var(--primary-gold) !important;
+  border-radius: 8px !important;
+  padding: 10px 14px !important;
+  text-align: left !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  cursor: pointer;
+  width: 100%;
+}
+
+:deep(.btn-quick-reply:hover) {
+  background-color: var(--bg-cream) !important;
+  border-color: var(--primary-gold) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(188, 145, 81, 0.08);
+}
+
+:deep(.btn-quick-reply:active) {
+  transform: scale(0.99);
+}
+
+:deep(.quick-reply-text) {
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+  font-weight: 500;
+  display: block;
+}
+
+:deep(.btn-quick-reply:hover .quick-reply-text) {
+  color: var(--text-dark);
 }
 </style>

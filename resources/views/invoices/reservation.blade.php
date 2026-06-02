@@ -67,14 +67,49 @@
                 <td>Room Type</td>
                 <td>{{ $reservation->room->room_type }} (#{{ $reservation->room->room_number }})</td>
             </tr>
+            @php
+                $checkIn = \Carbon\Carbon::parse($reservation->check_in);
+                $checkOut = \Carbon\Carbon::parse($reservation->check_out);
+                $nights = $checkIn->diffInDays($checkOut);
+                if ($nights <= 0) $nights = 1;
+            @endphp
             <tr class="item">
                 <td>Stay Duration</td>
-                <td>{{ $reservation->check_in }} to {{ $reservation->check_out }}</td>
+                <td>{{ $reservation->check_in }} to {{ $reservation->check_out }} ({{ $nights }} night{{ $nights > 1 ? 's' : '' }})</td>
+            </tr>
+            @if(in_array($reservation->room->room_type, ['Family Room', 'Barkadahan Room']))
+            <tr class="item">
+                <td>Guests</td>
+                <td>
+                    {{ $reservation->guests ?? 1 }} Guests
+                    <br>
+                    <span style="color: #666; font-size: 13px; font-style: italic;">
+                        (Room Minimum Capacity: {{ $reservation->room->min_occupancy }} Guests)
+                    </span>
+                </td>
             </tr>
             <tr class="item last">
-                <td>Nightly Rate</td>
-                <td>₱{{ number_format($reservation->room->price_per_night, 2) }}</td>
+                <td>Per Head Rate</td>
+                <td>
+                    ₱{{ number_format($reservation->room->price_per_head, 2) }} / head / night
+                    <br>
+                    <span style="color: #666; font-size: 13px; font-style: italic;">
+                        ((₱{{ number_format($reservation->room->price_per_head, 2) }} × {{ $reservation->guests ?? 1 }} guests) × {{ $nights }} night{{ $nights > 1 ? 's' : '' }})
+                    </span>
+                </td>
             </tr>
+            @else
+            <tr class="item last">
+                <td>Nightly Rate</td>
+                <td>
+                    ₱{{ number_format($reservation->room->price_per_night, 2) }} / night
+                    <br>
+                    <span style="color: #666; font-size: 13px; font-style: italic;">
+                        (₱{{ number_format($reservation->room->price_per_night, 2) }} × {{ $nights }} night{{ $nights > 1 ? 's' : '' }})
+                    </span>
+                </td>
+            </tr>
+            @endif
             <tr class="total">
                 <td></td>
                 <td>Total: ₱{{ number_format($reservation->total_amount, 2) }}</td>

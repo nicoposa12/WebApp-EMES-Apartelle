@@ -157,11 +157,14 @@ const getNotificationColorClass = (notif) => {
         case 'dispute_update':
             return 'notif-theme-dispute';
         case 'new_message':
+        case 'new_reply':
             return 'notif-theme-message';
         case 'account_suspended':
             return 'notif-theme-account';
         case 'new_booking':
         case 'booking_created':
+        case 'new_review':
+        case 'stay_extended':
         default:
             return 'notif-theme-booking';
     }

@@ -1,5 +1,6 @@
 import { reactive, readonly } from 'vue';
 import axios from 'axios';
+import { generateDeviceFingerprint } from '../utils/deviceFingerprint';
 
 const state = reactive({
     user: JSON.parse(localStorage.getItem('user')) || null,
@@ -35,7 +36,11 @@ if (state.token) {
 
 export const useAuth = () => {
     const login = async (credentials) => {
-        const response = await axios.post('/api/login', credentials);
+        const fingerprint = await generateDeviceFingerprint();
+        const response = await axios.post('/api/login', {
+            ...credentials,
+            device_fingerprint: fingerprint,
+        });
         if (response.data.mfa_required) {
             return response.data;
         }
@@ -45,7 +50,11 @@ export const useAuth = () => {
     };
 
     const verifyOtp = async (data) => {
-        const response = await axios.post('/api/login/verify-otp', data);
+        const fingerprint = await generateDeviceFingerprint();
+        const response = await axios.post('/api/login/verify-otp', {
+            ...data,
+            device_fingerprint: fingerprint,
+        });
         setToken(response.data.access_token);
         setUser(response.data.user);
         return response.data;

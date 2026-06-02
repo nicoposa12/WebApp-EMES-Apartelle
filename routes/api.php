@@ -84,6 +84,7 @@ Route::group(['prefix' => 'admin', 'middleware' => ['auth:sanctum']], function (
         Route::post('/guests', [AdminController::class, 'storeGuest']);
         Route::get('/payments', [AdminController::class, 'getPayments']);
         Route::post('/reviews/{id}/reply', [ReviewController::class, 'reply']);
+        Route::delete('/reviews/{id}/reply', [ReviewController::class, 'deleteReply']);
         Route::get('/disputes', [DisputeController::class, 'adminIndex']);
         Route::put('/disputes/{id}', [DisputeController::class, 'update']);
     });

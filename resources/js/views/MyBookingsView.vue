@@ -493,7 +493,7 @@ const handleExtendStay = async (booking) => {
                 </div>
                 <div class="alert alert-info border-0 shadow-sm d-flex align-items-center gap-2 rounded-3 py-2 px-3 mb-0">
                     <i class="bi bi-info-circle-fill text-info fs-6"></i>
-                    <span class="x-small text-muted">Additional nights will be charged at <strong>₱${formatPrice(booking.room?.price_per_night)}</strong> per night.</span>
+                    <span class="x-small text-muted">Additional nights will be charged at <strong>₱${formatPrice((booking.room?.room_type === 'Family Room' || booking.room?.room_type === 'Barkadahan Room') ? booking.room?.price_per_head : booking.room?.price_per_night)}</strong> ${(booking.room?.room_type === 'Family Room' || booking.room?.room_type === 'Barkadahan Room') ? 'per head per night' : 'per night'}.</span>
                 </div>
             </div>
         `,
@@ -627,7 +627,10 @@ const handleWriteReview = async (booking) => {
                 icon: 'success',
                 title: 'Review Submitted!',
                 text: 'Thank you for your feedback! It has been successfully posted.',
-                confirmButtonColor: '#BC9151'
+                iconColor: '#BC9151',
+                showConfirmButton: false,
+                timer: 2000,
+                timerProgressBar: true
             });
             
             await fetchBookings();
@@ -717,7 +720,8 @@ const handleViewReceipt = (booking) => {
     const formattedCreated = formatDate(booking.created_at || new Date());
     const receiptNo = `#EME-${String(booking.id).padStart(5, '0')}`;
     
-    const nightlyRate = booking.room?.price_per_night || 0;
+    const isPerHead = booking.room?.room_type === 'Family Room' || booking.room?.room_type === 'Barkadahan Room';
+    const nightlyRate = isPerHead ? (booking.room?.price_per_head || 0) : (booking.room?.price_per_night || 0);
     const subtotal = booking.total_amount || 0;
     
     let balanceHtml = '';
@@ -815,12 +819,28 @@ const handleViewReceipt = (booking) => {
                     <div class="receipt-section mt-4 pt-3 border-top border-dashed">
                         <h6 class="section-title mb-2" style="font-size: 0.75rem;"><i class="bi bi-receipt me-1.5 text-gold"></i> Charges Details</h6>
                         <div class="price-row d-flex justify-content-between mb-2">
-                            <span class="price-label">Room Rate (${totalNights} Nights)</span>
-                            <span class="price-val">₱${formatPrice(nightlyRate)} / night</span>
+                            <span class="price-label">${isPerHead ? 'Per Head Rate' : 'Room Rate'}</span>
+                            <span class="price-val">₱${formatPrice(nightlyRate)} ${isPerHead ? '/ head / night' : '/ night'}</span>
+                        </div>
+                        ${isPerHead ? `
+                        <div class="price-row d-flex justify-content-between mb-2">
+                            <span class="price-label">Guests</span>
+                            <span class="price-val">${booking.guests || 1} Guest${(booking.guests || 1) > 1 ? 's' : ''}</span>
+                        </div>
+                        ` : ''}
+                        <div class="price-row d-flex justify-content-between mb-2">
+                            <span class="price-label">Nights</span>
+                            <span class="price-val">${totalNights} Night${totalNights > 1 ? 's' : ''}</span>
+                        </div>
+                        <div class="price-row d-flex justify-content-between mb-2 border-top border-light pt-2">
+                            <span class="price-label">Breakdown</span>
+                            <span class="price-val text-muted small" style="font-style: italic;">
+                                ${isPerHead ? `((₱${formatPrice(nightlyRate)} × ${booking.guests || 1} guests) × ${totalNights} nights)` : `(₱${formatPrice(nightlyRate)} × ${totalNights} nights)`}
+                            </span>
                         </div>
                         <div class="price-row d-flex justify-content-between mb-2">
-                            <span class="price-label">Subtotal</span>
-                            <span class="price-val">₱${formatPrice(subtotal)}</span>
+                            <span class="price-label fw-bold">Subtotal</span>
+                            <span class="price-val fw-bold">₱${formatPrice(subtotal)}</span>
                         </div>
                         <div class="price-row d-flex justify-content-between text-success">
                             <span class="price-label">Taxes & Service Fees</span>

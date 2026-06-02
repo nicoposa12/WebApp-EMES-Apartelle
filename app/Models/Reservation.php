@@ -9,9 +9,28 @@ class Reservation extends Model
 {
     use HasFactory;
 
+    protected static function booted()
+    {
+        $clearCaches = function ($reservation) {
+            \Illuminate\Support\Facades\Cache::forget('rooms_public_list');
+            \Illuminate\Support\Facades\Cache::forget('all_booked_dates');
+            if ($reservation->room_id) {
+                \Illuminate\Support\Facades\Cache::forget("room_detail_{$reservation->room_id}");
+            }
+            \Illuminate\Support\Facades\Cache::forget('admin_stats_admin');
+            \Illuminate\Support\Facades\Cache::forget('admin_stats_staff');
+            \Illuminate\Support\Facades\Cache::forget('admin_reports');
+        };
+
+        static::created($clearCaches);
+        static::updated($clearCaches);
+        static::deleted($clearCaches);
+    }
+
     protected $fillable = [
         'user_id',
         'room_id',
+        'guests',
         'check_in',
         'check_out',
         'total_amount',

@@ -10,7 +10,7 @@
         <div class="p-5">
           <div class="text-center mb-5">
             <div class="admin-logo-badge mb-3 mx-auto shadow-lg">
-              <img src="/images/EMES logo.png" alt="Logo" class="w-100 h-100 object-fit-contain">
+              <img src="/images/emes-logo.png" alt="Logo" class="w-100 h-100 object-fit-contain">
             </div>
             <h2 class="serif-font fw-bold text-white mb-1">Administrative Control</h2>
             <p class="text-white-50 small text-uppercase tracking-widest">Secure Access Gateway</p>

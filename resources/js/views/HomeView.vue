@@ -79,6 +79,43 @@ const booking = ref({
   guests: '1 Adult'
 });
 
+const showRoomsModal = ref(false);
+const availableRooms = ref([]);
+
+const formatDisplayDate = (dateStr) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
+const totalNights = computed(() => {
+    if (!booking.value.checkIn || !booking.value.checkOut) return 0;
+    const start = new Date(booking.value.checkIn);
+    const end = new Date(booking.value.checkOut);
+    const diff = end - start;
+    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+});
+
+const formatPrice = (price) => {
+    return parseFloat(price || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+};
+
+const closeRoomsModal = () => {
+    showRoomsModal.value = false;
+};
+
+const bookThisRoom = (roomId) => {
+    showRoomsModal.value = false;
+    router.push({
+        path: `/rooms/${roomId}`,
+        query: {
+            checkIn: booking.value.checkIn,
+            checkOut: booking.value.checkOut,
+            guests: booking.value.guests
+        }
+    });
+};
+
 const handleCheckAvailability = async () => {
     if (!booking.value.checkIn || !booking.value.checkOut) {
          Swal.fire({
@@ -99,31 +136,11 @@ const handleCheckAvailability = async () => {
             }
         });
         
-        const availableRooms = response.data.filter(r => r.status === 'available');
+        const filtered = response.data.filter(r => r.status === 'available');
         
-        if (availableRooms.length > 0) {
-             Swal.fire({
-                icon: 'success',
-                title: 'Rooms Available!',
-                text: `We found ${availableRooms.length} available room(s) for your dates.`,
-                showCancelButton: true,
-                confirmButtonText: 'Book Now',
-                cancelButtonText: 'Close',
-                confirmButtonColor: '#BC9151',
-                cancelButtonColor: '#718096',
-                reverseButtons: true
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    router.push({
-                        path: '/book-now',
-                        query: {
-                            checkIn: booking.value.checkIn,
-                            checkOut: booking.value.checkOut,
-                            guests: booking.value.guests
-                        }
-                    });
-                }
-            });
+        if (filtered.length > 0) {
+             availableRooms.value = filtered;
+             showRoomsModal.value = true;
         } else {
              Swal.fire({
                 icon: 'error',
@@ -317,7 +334,8 @@ const formatIconClass = (icon) => {
                 <h4 class="room-card-title serif-font mb-3">Room #{{ room.room_number }}</h4>
                 <div class="d-flex justify-content-center gap-3 mb-4 text-muted small">
                     <span v-if="room.room_size"><i class="bi bi-aspect-ratio me-1"></i>{{ room.room_size }} m²</span>
-                    <span><i class="bi bi-people me-1"></i>Max {{ room.max_occupancy }}</span>
+                    <span v-if="room.min_occupancy && room.min_occupancy > 1"><i class="bi bi-people me-1"></i>{{ room.min_occupancy }} to {{ room.max_occupancy }} Guests</span>
+                    <span v-else><i class="bi bi-people me-1"></i>Max {{ room.max_occupancy }} Guests</span>
                 </div>
                 <router-link :to="`/rooms/${room.id}`" class="btn btn-gold w-100 py-2 rounded-pill fw-bold text-uppercase small">
                   View Room
@@ -427,6 +445,89 @@ const formatIconClass = (icon) => {
         </div>
       </div>
     </section>
+    <!-- ========== AVAILABLE ROOMS MODAL ========== -->
+    <Teleport to="body">
+      <div v-if="showRoomsModal" class="modal-backdrop fade show" style="z-index: 1050;" @click="closeRoomsModal"></div>
+      <div v-if="showRoomsModal" class="modal fade show d-block" tabindex="-1" style="z-index: 1055;" @click.self="closeRoomsModal">
+        <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+          <div class="modal-content border-0 rounded-4 overflow-hidden shadow-2xl">
+            <!-- Modal Header -->
+            <div class="modal-header bg-white border-bottom p-4 d-flex justify-content-between align-items-center">
+              <div>
+                <h3 class="modal-title serif-font text-secondary-dark mb-1">Available Accommodations</h3>
+                <p class="text-muted small mb-0 d-flex flex-wrap align-items-center gap-2">
+                  <span><i class="bi bi-calendar-check text-gold"></i> {{ formatDisplayDate(booking.checkIn) }} to {{ formatDisplayDate(booking.checkOut) }}</span>
+                  <span class="bullet-divider">•</span>
+                  <span><i class="bi bi-moon text-gold"></i> {{ totalNights }} {{ totalNights === 1 ? 'night' : 'nights' }}</span>
+                  <span class="bullet-divider">•</span>
+                  <span><i class="bi bi-people text-gold"></i> {{ booking.guests }}</span>
+                </p>
+              </div>
+              <button type="button" class="btn-close bg-light rounded-circle p-2" @click="closeRoomsModal" aria-label="Close"></button>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="modal-body bg-cream p-4">
+              <div class="row g-4 justify-content-center">
+                <div v-for="(room, index) in availableRooms" :key="room.id" class="col-lg-6 col-xl-4 animate-fade-up" :style="{ animationDelay: index * 50 + 'ms' }">
+                  <div class="room-card-premium card-hover h-100 bg-white rounded-5 shadow-sm overflow-hidden border-0 d-flex flex-column">
+                    <!-- Image Area -->
+                    <div class="room-card-image position-relative" style="height: 200px;">
+                      <img :src="getRoomImage(room)" :alt="room.room_type" loading="lazy" class="w-100 h-100 object-fit-cover">
+                      <span class="room-badge bg-success text-white">
+                          Available
+                      </span>
+                      <div class="room-size-tag" v-if="room.room_size">
+                         <i class="bi bi-aspect-ratio me-1"></i>{{ room.room_size }} m²
+                      </div>
+                    </div>
+                    
+                    <!-- Content Area -->
+                    <div class="room-card-body p-4 text-center d-flex flex-column flex-grow-1">
+                      <span class="text-gold small fw-bold text-uppercase tracking-widest mb-1 d-block">{{ room.room_type }}</span>
+                      <h4 class="room-card-title serif-font mb-2">Room #{{ room.room_number }}</h4>
+                      
+                      <!-- Features Row -->
+                      <div class="d-flex justify-content-center gap-2 mb-3 text-muted small flex-wrap">
+                          <span class="feature-badge" v-if="room.bed_type"><i class="bi bi-door-open me-1"></i>{{ room.bed_type }}</span>
+                          <span class="feature-badge" v-if="room.min_occupancy && room.min_occupancy > 1"><i class="bi bi-people me-1"></i>{{ room.min_occupancy }} to {{ room.max_occupancy }} Guests</span>
+                          <span class="feature-badge" v-else><i class="bi bi-people me-1"></i>Max {{ room.max_occupancy }} Guests</span>
+                      </div>
+                      
+                      <p class="room-card-description text-muted small mb-4 line-clamp-3 text-start">{{ room.description }}</p>
+                      
+                      <!-- Price display -->
+                      <div class="room-price-section mt-auto pt-3 border-top mb-3 d-flex justify-content-between align-items-center">
+                        <span class="small text-muted text-uppercase fw-bold">Rate</span>
+                        <div class="d-flex align-items-baseline">
+                          <span class="currency text-gold fw-bold">₱</span>
+                          <span class="h3 serif-font text-gold mb-0 fw-bold">
+                            {{ formatPrice((room.room_type === 'Family Room' || room.room_type === 'Barkadahan Room') ? room.price_per_head : room.price_per_night) }}
+                          </span>
+                          <span class="small text-muted">
+                            {{ (room.room_type === 'Family Room' || room.room_type === 'Barkadahan Room') ? '/head/night' : '/night' }}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <button @click="bookThisRoom(room.id)" class="btn btn-gold w-100 py-2.5 rounded-pill fw-bold text-uppercase small transition-all">
+                        Book Room Now
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Modal Footer -->
+            <div class="modal-footer bg-white border-top p-3 d-flex justify-content-between align-items-center">
+              <span class="small text-muted"><i class="bi bi-shield-check text-success me-1"></i> 100% Secure Checkout via Xendit</span>
+              <button type="button" class="btn btn-secondary px-4 py-2 rounded-pill small text-uppercase fw-bold" @click="closeRoomsModal">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -740,5 +841,73 @@ const formatIconClass = (icon) => {
 @keyframes shimmer-sweep {
     0% { transform: translateX(-100%); }
     100% { transform: translateX(100%); }
+}
+
+/* ========== ROOM AVAILABILITY MODAL ========== */
+.modal-backdrop.show {
+  opacity: 0.65;
+  background-color: #0f172a;
+  backdrop-filter: blur(4px);
+}
+
+.modal.show {
+  display: block;
+}
+
+.bullet-divider {
+  color: #cbd5e1;
+  font-size: 0.8rem;
+}
+
+.feature-badge {
+  background-color: #f8fafc;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  padding: 0.25rem 0.75rem;
+  border-radius: 50px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.room-price-section {
+  border-color: #f1f5f9 !important;
+}
+
+.room-price-section .currency {
+  font-size: 1rem;
+  margin-right: 2px;
+}
+
+.bg-cream {
+  background-color: #fcfbf9 !important;
+}
+
+.shadow-2xl {
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+}
+
+.animate-fade-up {
+  animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>

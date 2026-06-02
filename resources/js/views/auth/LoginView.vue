@@ -16,7 +16,7 @@
           <div class="col-lg-5 d-none d-lg-flex branding-panel flex-column justify-content-between">
             <div class="branding-inner">
               <div class="brand mb-auto">
-                <img src="/images/EMES logo.png" alt="EME's Apartelle" class="auth-logo mb-3">
+                <img src="/images/emes-logo.png" alt="EME's Apartelle" class="auth-logo mb-3">
                 <h4 class="serif-font fw-bold mb-0 text-white fs-4">EME's</h4>
                 <p class="brand-sub text-uppercase">Apartelle</p>
               </div>
@@ -143,6 +143,16 @@
                   <p class="text-muted small">We've sent a 6-digit verification code to <strong class="text-dark">{{ form.email }}</strong>. Please enter the code below to sign in.</p>
                 </div>
 
+                <!-- OTP Countdown Timer -->
+                <div class="mb-3">
+                  <div v-if="countdownSeconds > 0" class="d-inline-flex align-items-center justify-content-center px-3 py-2 rounded-pill" style="background: rgba(188, 145, 81, 0.1); color: var(--primary-gold); border: 1px solid rgba(188, 145, 81, 0.2); font-size: 0.85rem; font-weight: 600;">
+                    <i class="bi bi-clock me-2 text-gold"></i> Code expires in: <span class="font-monospace ms-1" style="font-weight: 700;">{{ countdownSeconds }}s</span>
+                  </div>
+                  <div v-else class="d-inline-flex align-items-center justify-content-center px-3 py-2 rounded-pill" style="background: rgba(220, 53, 69, 0.1); color: #dc3545; border: 1px solid rgba(220, 53, 69, 0.2); font-size: 0.85rem; font-weight: 600;">
+                    <i class="bi bi-exclamation-circle me-2"></i> Code has expired
+                  </div>
+                </div>
+
                 <div class="mb-4 field-group text-center">
                   <label class="field-label d-block text-center mb-2" for="otp-code">Enter Verification Code</label>
                   <div class="input-wrapper d-flex justify-content-center">
@@ -155,6 +165,7 @@
                       maxlength="6"
                       required
                       autocomplete="one-time-code"
+                      :disabled="countdownSeconds === 0"
                       style="letter-spacing: 0.35em; max-width: 240px; font-size: 1.5rem !important;"
                     >
                   </div>
@@ -163,7 +174,7 @@
                 <button 
                   type="submit" 
                   class="btn-primary-action w-100 mb-3"
-                  :disabled="loading"
+                  :disabled="loading || countdownSeconds === 0"
                   :class="{ 'is-loading': loading }"
                 >
                   <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
@@ -173,11 +184,16 @@
                 <button 
                   type="button" 
                   class="btn btn-outline-light border-light-subtle text-muted w-100 py-2.5 small fw-bold text-uppercase d-flex align-items-center justify-content-center"
-                  @click="mfaRequired = false"
+                  @click="cancelMfa"
                   style="border-radius: 12px; font-size: 0.72rem; letter-spacing: 0.08em; height: 42px;"
                 >
                   Back to Sign In
                 </button>
+
+                <p class="text-center small mt-3 mb-0" v-if="countdownSeconds === 0">
+                  Didn't receive the code or it expired? 
+                  <a href="#" @click.prevent="handleResendOtp" class="action-link" style="color: var(--primary-gold); font-weight: 700; text-decoration: none;">Resend Code</a>
+                </p>
               </form>
             </div>
           </div>
@@ -188,7 +204,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuth } from '../../store/auth';
 import Swal from 'sweetalert2';
@@ -212,6 +228,37 @@ const mfaRequired = ref(false);
 const showPassword = ref(false);
 const loading = ref(false);
 
+const countdownSeconds = ref(60);
+let countdownInterval = null;
+
+const startCountdown = () => {
+  stopCountdown();
+  countdownSeconds.value = 60;
+  countdownInterval = setInterval(() => {
+    if (countdownSeconds.value > 0) {
+      countdownSeconds.value--;
+    } else {
+      stopCountdown();
+    }
+  }, 1000);
+};
+
+const stopCountdown = () => {
+  if (countdownInterval) {
+    clearInterval(countdownInterval);
+    countdownInterval = null;
+  }
+};
+
+const cancelMfa = () => {
+  mfaRequired.value = false;
+  stopCountdown();
+};
+
+onUnmounted(() => {
+  stopCountdown();
+});
+
 onMounted(async () => {
   // Check if there's a token in the URL (from social callback redirect)
   const urlToken = route.query.token;
@@ -231,7 +278,8 @@ onMounted(async () => {
         showConfirmButton: false
       });
       
-      router.push('/rooms');
+      const redirectPath = route.query.redirect || '/rooms';
+      router.push(redirectPath);
     } catch (e) {
       console.error(e);
       Swal.fire({ icon: 'error', title: 'Auth Failed', text: 'Social login was unsuccessful.' });
@@ -278,6 +326,7 @@ const handleLogin = async () => {
     if (response.mfa_required) {
       mfaRequired.value = true;
       otpForm.code = ''; // Reset code
+      startCountdown(); // Start countdown timer
       Swal.fire({
         icon: 'info',
         title: 'OTP Verification Required',
@@ -307,7 +356,8 @@ const handleLogin = async () => {
       position: 'top-end'
     });
 
-    router.push('/rooms');
+    const redirectPath = route.query.redirect || '/rooms';
+    router.push(redirectPath);
   } catch (error) {
     Swal.fire({
       icon: 'error',
@@ -335,6 +385,8 @@ const handleVerifyOtp = async () => {
       throw new Error('Staff and Administrators must use the dedicated Admin Portal to sign in.');
     }
 
+    stopCountdown(); // Stop countdown timer on success
+
     Swal.fire({
       icon: 'success',
       title: 'Sign In Successful',
@@ -345,12 +397,46 @@ const handleVerifyOtp = async () => {
       position: 'top-end'
     });
 
-    router.push('/rooms');
+    const redirectPath = route.query.redirect || '/rooms';
+    router.push(redirectPath);
   } catch (error) {
     Swal.fire({
       icon: 'error',
       title: 'Verification Failed',
       text: error.response?.data?.message || 'Invalid or expired verification code. Please try again.',
+      confirmButtonColor: '#BC9151'
+    });
+  } finally {
+    loading.value = false;
+  }
+};
+
+const handleResendOtp = async () => {
+  loading.value = true;
+  try {
+    const response = await login({
+      email: form.email,
+      password: form.password
+    });
+    
+    if (response.mfa_required) {
+      otpForm.code = ''; // Reset code
+      startCountdown(); // Restart the countdown timer
+      Swal.fire({
+        icon: 'success',
+        title: 'New Code Sent',
+        text: 'A new 6-digit verification code has been sent to your email.',
+        timer: 3000,
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false
+      });
+    }
+  } catch (error) {
+    Swal.fire({
+      icon: 'error',
+      title: 'Resend Failed',
+      text: error.response?.data?.message || 'Could not resend verification code. Please try again.',
       confirmButtonColor: '#BC9151'
     });
   } finally {

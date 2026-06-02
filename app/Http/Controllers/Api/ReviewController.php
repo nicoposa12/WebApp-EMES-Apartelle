@@ -99,6 +99,12 @@ class ReviewController extends Controller
             'comment' => $request->comment,
         ]);
 
+        $review->load(['user', 'room']);
+
+        // Notify Admins & Staff
+        $adminsAndStaff = \App\Models\User::whereIn('role', ['admin', 'staff'])->get();
+        \Illuminate\Support\Facades\Notification::send($adminsAndStaff, new \App\Notifications\NewReviewReceived($review));
+
         return response()->json([
             'message' => 'Thank you for your feedback!',
             'review' => $review->load('user:id,name,profile_photo_path')
@@ -128,8 +134,36 @@ class ReviewController extends Controller
             'admin_reply' => $request->admin_reply
         ]);
 
+        $review->load(['user', 'room']);
+
+        // Notify Guest
+        if ($review->user) {
+            $review->user->notify(new \App\Notifications\NewReviewReplyReceived($review));
+        }
+
         return response()->json([
             'message' => 'Reply posted successfully.',
+            'review' => $review->load('user:id,name,profile_photo_path')
+        ]);
+    }
+
+    /**
+     * Admin/Staff: Delete an admin/staff reply to a guest review.
+     */
+    public function deleteReply($reviewId)
+    {
+        $user = auth()->user();
+        if (!$user || !in_array($user->role, ['admin', 'staff'])) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        $review = Review::findOrFail($reviewId);
+        $review->update([
+            'admin_reply' => null
+        ]);
+
+        return response()->json([
+            'message' => 'Reply deleted successfully.',
             'review' => $review->load('user:id,name,profile_photo_path')
         ]);
     }

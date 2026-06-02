@@ -40,7 +40,7 @@ class SendOTPNotification extends Notification
             ->subject('Your Two-Factor Authentication OTP Code')
             ->greeting('Hello, ' . $notifiable->name . '!')
             ->line('You are receiving this email because a login request was initiated for your account at EME\'s Apartelle.')
-            ->line('Use the following 6-digit One-Time Password (OTP) to complete your login. This code is valid for the next 10 minutes.')
+            ->line('Use the following 6-digit One-Time Password (OTP) to complete your login. This code is valid for the next 60 seconds.')
             ->line('')
             ->line('**' . $this->otpCode . '**')
             ->line('')

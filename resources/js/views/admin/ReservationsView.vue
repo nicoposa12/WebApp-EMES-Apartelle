@@ -61,7 +61,8 @@
                     </div>
                   </td>
                   <td>
-                    <span class="small fw-medium text-secondary-dark">{{ res.room?.room_type }} #{{ res.room?.room_number }}</span>
+                    <span class="small fw-medium text-secondary-dark d-block">{{ res.room?.room_type }} #{{ res.room?.room_number }}</span>
+                    <small class="text-muted d-block" v-if="res.guests"><i class="bi bi-people me-1"></i>{{ res.guests }} Guest{{ res.guests > 1 ? 's' : '' }}</small>
                   </td>
                   <td>
                     <input type="datetime-local" 
@@ -241,7 +242,6 @@
                        <label class="form-label-custom small fw-bold text-uppercase text-muted mb-1">Check-out Date & Time</label>
                        <input type="datetime-local" class="form-control form-control-custom py-2" v-model="newBooking.check_out" :min="newBooking.check_in || todayDateTimeStr" required>
                     </div>
-
                     <!-- Room Selection -->
                     <div class="col-12">
                        <label class="form-label-custom small fw-bold text-uppercase text-muted mb-1">Select Room</label>
@@ -249,7 +249,7 @@
                          <select class="form-select form-control-custom py-2" v-model="newBooking.room_id" required style="border-top-right-radius: 0; border-bottom-right-radius: 0;">
                            <option value="" disabled>Choose a room...</option>
                            <option v-for="room in availableRooms" :key="room.id" :value="room.id">
-                             {{ room.room_type }} #{{ room.room_number }} - ₱{{ formatPrice(room.price_per_night) }}/night
+                             {{ room.room_type }} #{{ room.room_number }} - ₱{{ (room.room_type === 'Family Room' || room.room_type === 'Barkadahan Room') ? formatPrice(room.price_per_head) + '/head/night' : formatPrice(room.price_per_night) + '/night' }}
                            </option>
                          </select>
                          <button 
@@ -261,9 +261,22 @@
                             style="border-color: #dee2e6; border-left: 0;"
                           >
                             <i class="bi bi-eye text-primary"></i>
-                         </button>
+                          </button>
                        </div>
                     </div>
+
+                    <!-- Guest Count Selection -->
+                    <div class="col-12" v-if="newBooking.room_id">
+                       <label class="form-label-custom small fw-bold text-uppercase text-muted mb-1">Number of Guests</label>
+                       <select class="form-select form-control-custom py-2" v-model="newBooking.guests" required>
+                         <option v-for="n in (selectedNewBookingRoom ? selectedNewBookingRoom.max_occupancy : 12)" 
+                                 :key="n" 
+                                 :value="n" 
+                                 :disabled="selectedNewBookingRoom && selectedNewBookingRoom.min_occupancy && n < selectedNewBookingRoom.min_occupancy">
+                           {{ n }} Guest{{ n > 1 ? 's' : '' }}
+                         </option>
+                       </select>
+                     </div>
                   </div>
                   
                   <div class="d-flex justify-content-end gap-3 mt-5 pt-3 border-top">
@@ -299,7 +312,12 @@
                     <span class="badge bg-gold-subtle text-gold px-3 py-2 rounded-pill text-uppercase fw-bold" style="font-size: 0.7rem;">
                        {{ selectedRoomDetail.status }}
                     </span>
-                    <span class="h4 serif-font text-secondary-dark mb-0">₱{{ formatPrice(selectedRoomDetail.price_per_night) }}</span>
+                    <span class="h4 serif-font text-secondary-dark mb-0">
+                      ₱{{ (selectedRoomDetail.room_type === 'Family Room' || selectedRoomDetail.room_type === 'Barkadahan Room') ? formatPrice(selectedRoomDetail.price_per_head) : formatPrice(selectedRoomDetail.price_per_night) }}
+                      <span class="fs-6 text-muted" style="font-size: 0.8rem;">
+                        {{ (selectedRoomDetail.room_type === 'Family Room' || selectedRoomDetail.room_type === 'Barkadahan Room') ? '/head/night' : '/night' }}
+                      </span>
+                    </span>
                   </div>
                   <p class="text-muted small mb-3">{{ selectedRoomDetail.description }}</p>
                   
@@ -413,7 +431,14 @@
                         </div>
                         <div>
                           <h6 class="fw-bold text-secondary-dark mb-1 small">{{ selectedReservation.room?.room_type }} - Room #{{ selectedReservation.room?.room_number }}</h6>
-                          <p class="text-muted mb-0 small">₱{{ formatPrice(selectedReservation.room?.price_per_night) }} / night</p>
+                          <p class="text-muted mb-0 small">
+                            <template v-if="selectedReservation.room?.room_type === 'Family Room' || selectedReservation.room?.room_type === 'Barkadahan Room'">
+                              ₱{{ formatPrice(selectedReservation.room?.price_per_head) }} / head / night
+                            </template>
+                            <template v-else>
+                              ₱{{ formatPrice(selectedReservation.room?.price_per_night) }} / night
+                            </template>
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -493,8 +518,31 @@
                       <h6 class="text-uppercase text-gold fw-bold small tracking-wider mb-3"><i class="bi bi-credit-card me-2"></i>Financial Summary</h6>
                       <div class="d-flex flex-column gap-2 mb-3">
                         <div class="d-flex justify-content-between align-items-center">
-                          <small class="text-muted">Price Per Night</small>
-                          <span class="small fw-semibold text-secondary-dark">₱{{ formatPrice(selectedReservation.room?.price_per_night) }}</span>
+                          <small class="text-muted">
+                            {{ (selectedReservation.room?.room_type === 'Family Room' || selectedReservation.room?.room_type === 'Barkadahan Room') ? 'Price Per Head / Night' : 'Price Per Night' }}
+                          </small>
+                          <span class="small fw-semibold text-secondary-dark">
+                            ₱{{ formatPrice((selectedReservation.room?.room_type === 'Family Room' || selectedReservation.room?.room_type === 'Barkadahan Room') ? selectedReservation.room?.price_per_head : selectedReservation.room?.price_per_night) }}
+                          </span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center" v-if="selectedReservation.guests && (selectedReservation.room?.room_type === 'Family Room' || selectedReservation.room?.room_type === 'Barkadahan Room')">
+                          <small class="text-muted">Guests</small>
+                          <span class="small fw-semibold text-secondary-dark">{{ selectedReservation.guests }} Guest{{ selectedReservation.guests > 1 ? 's' : '' }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                          <small class="text-muted">Nights</small>
+                          <span class="small fw-semibold text-secondary-dark">{{ totalReservationNights(selectedReservation) }} Night{{ totalReservationNights(selectedReservation) > 1 ? 's' : '' }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center border-top pt-2 mt-1">
+                          <small class="text-muted">Breakdown</small>
+                          <span class="x-small text-muted" style="font-style: italic;">
+                            <template v-if="selectedReservation.room?.room_type === 'Family Room' || selectedReservation.room?.room_type === 'Barkadahan Room'">
+                              ((₱{{ formatPrice(selectedReservation.room?.price_per_head) }} × {{ selectedReservation.guests || 1 }} guests) × {{ totalReservationNights(selectedReservation) }} nights)
+                            </template>
+                            <template v-else>
+                              (₱{{ formatPrice(selectedReservation.room?.price_per_night) }} × {{ totalReservationNights(selectedReservation) }} nights)
+                            </template>
+                          </span>
                         </div>
                         
                         <!-- If 50% downpayment option -->
@@ -672,8 +720,41 @@ const newBooking = ref({
   user_id: '',
   room_id: '',
   check_in: '',
-  check_out: ''
+  check_out: '',
+  guests: 1
 });
+
+const selectedNewBookingRoom = computed(() => {
+  return availableRooms.value.find(r => r.id === newBooking.value.room_id);
+});
+
+// Watch selected room to auto-adjust guests count
+watch(selectedNewBookingRoom, (newRoom) => {
+  if (newRoom) {
+    if (newBooking.value.guests > newRoom.max_occupancy) {
+      newBooking.value.guests = newRoom.max_occupancy;
+    }
+    if (newRoom.min_occupancy && newBooking.value.guests < newRoom.min_occupancy) {
+      newBooking.value.guests = newRoom.min_occupancy;
+    }
+    if (newRoom.room_type.toLowerCase().includes('single')) {
+      newBooking.value.guests = 1;
+    }
+  }
+});
+
+// Watch guests count to stay within selected room constraints
+watch(() => newBooking.value.guests, (newGuests) => {
+  if (selectedNewBookingRoom.value) {
+    if (newGuests > selectedNewBookingRoom.value.max_occupancy) {
+      newBooking.value.guests = selectedNewBookingRoom.value.max_occupancy;
+    }
+    if (selectedNewBookingRoom.value.min_occupancy && newGuests < selectedNewBookingRoom.value.min_occupancy) {
+      newBooking.value.guests = selectedNewBookingRoom.value.min_occupancy;
+    }
+  }
+});
+
 
 const guestForm = ref({
   first_name: '',
@@ -765,7 +846,7 @@ const openNewBookingModal = () => {
   fetchUsers();
   fetchAvailableRooms();
   // Reset form
-  newBooking.value = { user_id: '', room_id: '', check_in: '', check_out: '' };
+  newBooking.value = { user_id: '', room_id: '', check_in: '', check_out: '', guests: 1 };
 };
 
 const closeNewBookingModal = () => {
@@ -797,8 +878,8 @@ const getRoomImage = (room) => {
     
     // Fallback based on type keywords
     const type = room.room_type.toLowerCase();
-    if (type.includes('suite')) return '/images/unsplash/suite-room.jpg';
-    if (type.includes('deluxe')) return '/images/unsplash/deluxe-room.jpg';
+    if (type.includes('family')) return '/images/unsplash/suite-room.jpg';
+    if (type.includes('barkadahan')) return '/images/unsplash/deluxe-room.jpg';
     return '/images/unsplash/standard-room.jpg';
 };
 
@@ -1121,6 +1202,15 @@ const formatPrice = (price) => {
 
 const formatDate = (dateString) => {
   return new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
+const totalReservationNights = (res) => {
+  if (!res || !res.check_in || !res.check_out) return 0;
+  const start = new Date(res.check_in.replace(' ', 'T'));
+  const end = new Date(res.check_out.replace(' ', 'T'));
+  const diff = end - start;
+  const nights = Math.round(diff / (1000 * 60 * 60 * 24));
+  return nights > 0 ? nights : 0;
 };
 
 onMounted(fetchReservations);

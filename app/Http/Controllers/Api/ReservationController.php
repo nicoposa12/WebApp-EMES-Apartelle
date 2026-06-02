@@ -80,6 +80,7 @@ class ReservationController extends Controller
             'check_in' => 'required|date|after_or_equal:today',
             'check_out' => 'required|date|after:check_in',
             'payment_option' => 'sometimes|required|in:full,half',
+            'guests' => 'nullable|integer|min:1',
         ]);
 
         if (!$userId && !$request->has('user_id')) {
@@ -111,7 +112,13 @@ class ReservationController extends Controller
 
         $room = Room::find($request->room_id);
         $days = $checkIn->diffInDays($checkOut);
-        $totalAmount = $room->price_per_night * $days;
+        
+        $guests = $request->input('guests', 1);
+        if (in_array($room->room_type, ['Family Room', 'Barkadahan Room'])) {
+            $totalAmount = $room->price_per_head * $guests * $days;
+        } else {
+            $totalAmount = $room->price_per_night * $days;
+        }
 
         $paymentOption = $request->payment_option ?? 'full';
         $downpaymentAmount = ($paymentOption === 'half') ? ($totalAmount / 2) : null;
@@ -119,6 +126,7 @@ class ReservationController extends Controller
         $reservation = Reservation::create([
             'user_id' => $userId,
             'room_id' => $request->room_id,
+            'guests' => $guests,
             'check_in' => $request->check_in,
             'check_out' => $request->check_out,
             'total_amount' => $totalAmount,
@@ -134,12 +142,12 @@ class ReservationController extends Controller
             $request->user()->notify(new BookingCreated($reservation));
         }
 
-        // Notify Admins (other than the one who made the booking, if any)
-        $admins = \App\Models\User::where('role', 'admin');
-        if ($request->user() && $request->user()->role === 'admin') {
-            $admins->where('id', '!=', $request->user()->id);
+        // Notify Admins & Staff (other than the one who made the booking, if any)
+        $adminsAndStaff = \App\Models\User::whereIn('role', ['admin', 'staff']);
+        if ($request->user()) {
+            $adminsAndStaff->where('id', '!=', $request->user()->id);
         }
-        Notification::send($admins->get(), new NewBookingForAdmin($reservation));
+        Notification::send($adminsAndStaff->get(), new NewBookingForAdmin($reservation));
 
         $amountToCharge = ($paymentOption === 'half') ? $downpaymentAmount : $totalAmount;
 
@@ -257,6 +265,7 @@ class ReservationController extends Controller
             'check_in' => 'sometimes|required|date',
             'check_out' => 'sometimes|required|date|after:check_in',
             'cancellation_reason' => 'sometimes|nullable|string|max:1000',
+            'guests' => 'sometimes|required|integer|min:1',
         ]);
 
         $validator->sometimes('cancellation_reason', 'required|string|min:5|max:1000', function ($input) use ($reservation) {
@@ -268,8 +277,8 @@ class ReservationController extends Controller
         }
 
         $newTotalAmount = null;
-        // If changing dates, check availability again and calculate new total price
-        if ($request->has('check_in') || $request->has('check_out')) {
+        // If changing dates or guest count, check availability again and calculate new total price
+        if ($request->has('check_in') || $request->has('check_out') || $request->has('guests')) {
             $checkIn = Carbon::parse($request->check_in ?? $reservation->check_in);
             $checkOut = Carbon::parse($request->check_out ?? $reservation->check_out);
             
@@ -286,13 +295,21 @@ class ReservationController extends Controller
                 return response()->json(['message' => 'The room is not available for the new dates.'], 422);
             }
 
-            // Calculate new total amount based on new date duration
+            // Calculate new total amount based on new date duration and room type
             $room = Room::find($reservation->room_id);
             $days = $checkIn->diffInDays($checkOut);
-            $newTotalAmount = $room->price_per_night * $days;
+            
+            if (in_array($room->room_type, ['Family Room', 'Barkadahan Room'])) {
+                $guests = $request->input('guests') ?? $reservation->guests ?? $room->min_occupancy;
+                $newTotalAmount = $room->price_per_head * $guests * $days;
+            } else {
+                $newTotalAmount = $room->price_per_night * $days;
+            }
         }
 
-        return DB::transaction(function () use ($request, $reservation, $newTotalAmount) {
+        $oldCheckout = $reservation->check_out;
+
+        return DB::transaction(function () use ($request, $reservation, $newTotalAmount, $oldCheckout) {
             $oldStatus = $reservation->status;
             $oldPaymentStatus = $reservation->payment_status;
             
@@ -307,6 +324,20 @@ class ReservationController extends Controller
             }
 
             $reservation->update($updateData);
+
+            // Notify Admins & Staff when a stay is extended
+            if ($request->has('check_out')) {
+                $newCheckOut = Carbon::parse($reservation->check_out);
+                $originalCheckOut = Carbon::parse($oldCheckout);
+                if ($newCheckOut->greaterThan($originalCheckOut)) {
+                    $reservation->load(['room', 'user']);
+                    $adminsAndStaff = \App\Models\User::whereIn('role', ['admin', 'staff']);
+                    if ($request->user()) {
+                        $adminsAndStaff->where('id', '!=', $request->user()->id);
+                    }
+                    Notification::send($adminsAndStaff->get(), new \App\Notifications\StayExtendedForAdmin($reservation, $oldCheckout));
+                }
+            }
 
             // Auto-refund if cancelled from paid/partially_paid
             if ($reservation->status === 'cancelled' && $oldStatus !== 'cancelled') {
@@ -325,8 +356,23 @@ class ReservationController extends Controller
                 }
             }
 
-            // Transition from partially_paid to paid (automatically record remaining balance in payments)
-            if ($reservation->payment_status === 'paid' && $oldPaymentStatus === 'partially_paid') {
+            // Transition from unpaid to partially_paid (automatically record downpayment in payments)
+            if ($reservation->payment_status === 'partially_paid' && $oldPaymentStatus === 'unpaid') {
+                $paymentExists = Payment::where('reservation_id', $reservation->id)->exists();
+                if (!$paymentExists) {
+                    $downpayment = $reservation->downpayment_amount ?: ($reservation->total_amount / 2);
+                    Payment::create([
+                        'reservation_id' => $reservation->id,
+                        'paymongo_payment_id' => 'MANUAL-DP-' . strtoupper(Str::random(10)),
+                        'amount' => $downpayment,
+                        'method' => 'Cash/Manual',
+                        'status' => 'Succeeded',
+                    ]);
+                }
+            }
+
+            // Transition from unpaid/partially_paid to paid (automatically record remaining balance in payments)
+            if ($reservation->payment_status === 'paid' && in_array($oldPaymentStatus, ['unpaid', 'partially_paid'])) {
                 $totalPaid = Payment::where('reservation_id', $reservation->id)
                     ->where('status', 'Succeeded')
                     ->sum('amount');

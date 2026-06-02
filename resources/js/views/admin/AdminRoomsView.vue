@@ -84,7 +84,14 @@
                   <span class="d-block fw-semibold text-dark">{{ room.room_type }}</span>
                   <small class="text-muted" v-if="room.room_size"><i class="bi bi-arrows-fullscreen me-1 small"></i>{{ room.room_size }} sq.m</small>
                 </td>
-                <td><span class="fw-bold text-gold fs-5">₱{{ formatPrice(room.price_per_night) }}</span></td>
+                <td>
+                  <span class="fw-bold text-gold fs-5" v-if="room.room_type === 'Family Room' || room.room_type === 'Barkadahan Room'">
+                    ₱{{ formatPrice(room.price_per_head) }} / head
+                  </span>
+                  <span class="fw-bold text-gold fs-5" v-else>
+                    ₱{{ formatPrice(room.price_per_night) }}
+                  </span>
+                </td>
                 <td>
                   <span class="badge rounded-pill fw-bold text-uppercase px-3 py-2" :class="statusBadgeClass(room.status)" style="font-size: 0.7rem;">
                     {{ room.status }}
@@ -138,7 +145,7 @@
              </div>
              <div>
                <h4 class="serif-font fw-bold mb-0 text-dark">{{ editingRoom ? 'Edit Room' : 'Add Room' }}</h4>
-               <p class="text-muted small mb-0">{{ editingRoom ? 'Changing Room #' + editingRoom.room_number : 'Add a new room to the system.' }}</p>
+               <p class="text-muted small mb-0">{{ editingRoom ? 'Edit Room #' + editingRoom.room_number : 'Add a new room.' }}</p>
              </div>
           </div>
           <button class="btn-close-premium" @click="closeModal">
@@ -164,7 +171,7 @@
 
             <!-- Visual Preview Card Shortcut (Bottom of Sibebar) -->
             <div class="mt-auto p-3 bg-white rounded-4 border border-dashed border-gold-light opacity-75">
-               <div class="small fw-bold text-gold text-uppercase mb-2 text-center" style="font-size: 0.6rem;">Live Specification</div>
+               <div class="small fw-bold text-gold text-uppercase mb-2 text-center" style="font-size: 0.6rem;">Room Preview</div>
                <div class="d-flex flex-column align-items-center">
                   <span class="h4 mb-0 fw-bold serif-font text-dark">{{ form.room_number || '---' }}</span>
                   <span class="small text-muted">{{ form.room_type.split(' ')[0] }}</span>
@@ -187,25 +194,24 @@
                  <div class="row g-4">
                     <div class="col-md-6">
                        <div class="floating-group">
-                          <input type="text" v-model="form.room_number" class="input-modern-xl" placeholder=" " required id="f_room_no">
-                          <label for="f_room_no">Unit / Room Number</label>
+                           <input type="text" v-model="form.room_number" class="input-modern-xl" placeholder=" " required id="f_room_no">
+                           <label for="f_room_no">Room Number</label>
                        </div>
                     </div>
                     <div class="col-md-6">
                        <div class="floating-group">
                           <select v-model="form.room_type" class="input-modern-xl" required id="f_room_type">
-                             <option value="Standard Single">Standard Single</option>
-                             <option value="Deluxe Double">Deluxe Double</option>
-                             <option value="Family Suite">Family Suite</option>
-                             <option value="Premium Suite">Premium Suite</option>
+                             <option value="Family Room">Family Room</option>
+                             <option value="Barkadahan Room">Barkadahan Room</option>
+                             <option value="Couple Room">Couple Room</option>
                           </select>
                           <label for="f_room_type">Room Type</label>
                        </div>
                     </div>
                     <div class="col-md-12">
                        <div class="floating-group">
-                          <textarea v-model="form.description" class="input-modern-xl" rows="4" placeholder=" " id="f_desc"></textarea>
-                          <label for="f_desc">Room Details</label>
+                           <textarea v-model="form.description" class="input-modern-xl" rows="4" placeholder=" " id="f_desc"></textarea>
+                           <label for="f_desc">Description</label>
                        </div>
                     </div>
                  </div>
@@ -215,43 +221,56 @@
               <div v-show="activeTab === 'specs'" class="animate-tab-content">
                  <div class="section-title-premium mb-4">
                     <span class="badge bg-gold-subtle text-gold mb-2">Step 2</span>
-                    <h5 class="fw-bold text-dark">Price & Details</h5>
-                    <p class="text-muted small">Set how much it costs and how many guests.</p>
+                    <h5 class="fw-bold text-dark">Price & Size</h5>
+                    <p class="text-muted small">Set price, guest count, bed type, and size.</p>
                  </div>
 
                  <div class="row g-4">
-                    <div class="col-md-6">
+                    <div class="col-md-6" v-if="form.room_type !== 'Family Room' && form.room_type !== 'Barkadahan Room'">
                        <div class="floating-group price-field">
-                          <input type="number" v-model="form.price_per_night" class="input-modern-xl" placeholder=" " required id="f_price">
-                          <label for="f_price">Nightly Rate (PHP)</label>
+                          <input type="number" v-model="form.price_per_night" class="input-modern-xl" placeholder=" " :required="form.room_type !== 'Family Room' && form.room_type !== 'Barkadahan Room'" id="f_price">
+                          <label for="f_price">Price per Night (PHP)</label>
+                          <span class="currency-prefix">₱</span>
+                       </div>
+                    </div>
+                    <div class="col-md-6" v-if="form.room_type === 'Family Room' || form.room_type === 'Barkadahan Room'">
+                       <div class="floating-group price-field">
+                          <input type="number" v-model="form.price_per_head" class="input-modern-xl" placeholder=" " id="f_price_head">
+                          <label for="f_price_head">Per Head per Night (PHP)</label>
                           <span class="currency-prefix">₱</span>
                        </div>
                     </div>
                     <div class="col-md-6">
                        <div class="floating-group">
+                          <input type="number" v-model="form.min_occupancy" class="input-modern-xl" placeholder=" " required id="f_min">
+                          <label for="f_min">Min Guests</label>
+                       </div>
+                    </div>
+                    <div class="col-md-6">
+                       <div class="floating-group">
                           <input type="number" v-model="form.max_occupancy" class="input-modern-xl" placeholder=" " required id="f_max">
-                          <label for="f_max">Maximum Guests</label>
+                          <label for="f_max">Max Guests</label>
                        </div>
                     </div>
                     <div class="col-md-6">
                        <div class="floating-group">
                           <input type="text" v-model="form.bed_type" class="input-modern-xl" placeholder=" " id="f_bed">
-                          <label for="f_bed">Bed Configuration</label>
+                          <label for="f_bed">Bed Type</label>
                        </div>
                     </div>
                     <div class="col-md-6">
                        <div class="floating-group">
                           <input type="text" v-model="form.room_size" class="input-modern-xl" placeholder=" " id="f_size">
-                          <label for="f_size">Floor Area (sq.m)</label>
+                          <label for="f_size">Room Size (sq.m)</label>
                        </div>
                     </div>
                     <div class="col-md-12">
-                        <label class="small fw-bold text-uppercase text-muted mb-3 d-block tracking-widest">Available?</label>
+                        <label class="small fw-bold text-uppercase text-muted mb-3 d-block tracking-widest">Status</label>
                         <div class="status-selector-modern d-flex gap-3">
                            <div class="status-option flex-grow-1">
                               <input type="radio" class="btn-check" name="room_status" id="s_avail" value="available" v-model="form.status">
                               <label class="btn btn-status-modern w-100 py-3" for="s_avail">
-                                 <i class="bi bi-check-circle-fill me-2"></i> Ready for Guests
+                                 <i class="bi bi-check-circle-fill me-2"></i> Available
                               </label>
                            </div>
                            <div class="status-option flex-grow-1">
@@ -269,19 +288,19 @@
               <div v-show="activeTab === 'media'" class="animate-tab-content">
                  <div class="section-title-premium mb-4">
                     <span class="badge bg-gold-subtle text-gold mb-2">Step 3</span>
-                    <h5 class="fw-bold text-dark">Photos & Features</h5>
-                    <p class="text-muted small">Add photos and what's inside the room.</p>
+                    <h5 class="fw-bold text-dark">Photos & Amenities</h5>
+                    <p class="text-muted small">Add photos and select amenities.</p>
                  </div>
 
                   <div class="row g-4">
                     <div class="col-12">
-                       <label class="small fw-bold text-uppercase text-muted mb-3 d-block tracking-widest">Main Room Image</label>
+                       <label class="small fw-bold text-uppercase text-muted mb-3 d-block tracking-widest">Main Photo</label>
                        <div class="image-preview-slot rounded-5 border-2 border-dashed border-gold-light mb-4 overflow-hidden position-relative group cursor-pointer" @click="$refs.fileInput.click()">
                           <img v-if="imagePreview" :src="imagePreview" class="w-100 h-100 object-fit-cover">
                           <img v-else-if="form.image" :src="form.image" class="w-100 h-100 object-fit-cover">
                           <div v-else class="h-100 d-flex flex-column align-items-center justify-content-center text-muted py-5">
                              <i class="bi bi-cloud-arrow-up fs-1 opacity-25 mb-2"></i>
-                             <span class="small fw-semibold">Click to Upload Main Photo</span>
+                             <span class="small fw-semibold">Click to upload main photo</span>
                           </div>
                           
                           <!-- Remove Main Image Button -->
@@ -301,7 +320,7 @@
                     <!-- Additional Images Section -->
                     <div class="col-12 mt-2">
                        <label class="small fw-bold text-uppercase text-muted mb-3 d-block tracking-widest d-flex justify-content-between">
-                          Gallery Images
+                          More Photos
                           <span class="text-gold">{{ existingImages.length + multipleImagePreviews.length }} Total</span>
                        </label>
                        
@@ -334,7 +353,7 @@
 
                     <div class="col-12 mt-5">
                        <label class="small fw-bold text-uppercase text-muted mb-4 d-block tracking-widest d-flex justify-content-between">
-                          Inclusive Amenities
+                          Amenities
                           <span class="text-gold">{{ form.amenities.length }} Selected</span>
                        </label>
                        <div class="row g-3">
@@ -370,16 +389,16 @@
            </div>
            
            <div class="d-flex gap-3">
-              <button type="button" class="btn btn-outline-modern px-4 py-2 fw-semibold rounded-pill" @click="closeModal">Discard</button>
+              <button type="button" class="btn btn-outline-modern px-4 py-2 fw-semibold rounded-pill" @click="closeModal">Cancel</button>
               
               <button v-if="activeTab !== 'media'" @click="activeTab = getNextTab()" type="button" class="btn btn-dark-modern px-4 py-2 rounded-pill d-flex align-items-center gap-2">
-                 <span>Next Section</span>
+                 <span>Next</span>
                  <i class="bi bi-arrow-right"></i>
               </button>
               
               <button v-else type="submit" form="roomPremiumForm" class="btn btn-gold px-5 py-2 rounded-pill shadow-gold d-flex align-items-center gap-2" :disabled="saving">
                  <span v-if="saving" class="spinner-border spinner-border-sm"></span>
-                 <span class="fw-bold text-uppercase tracking-wider small">{{ editingRoom ? 'Save Changes' : 'Save Room' }}</span>
+                 <span class="fw-bold text-uppercase tracking-wider small">Save</span>
               </button>
            </div>
         </div>
@@ -431,30 +450,42 @@
                </div>
                
                <div class="row g-3">
-                 <div class="col-6">
-                   <div class="p-3 bg-light rounded-3">
-                     <small class="text-muted d-block mb-1">Nightly Rate</small>
-                     <span class="fw-bold h5 mb-0 text-secondary-dark">₱{{ formatPrice(selectedRoom.price_per_night) }}</span>
-                   </div>
-                 </div>
-                 <div class="col-6">
-                   <div class="p-3 bg-light rounded-3">
-                     <small class="text-muted d-block mb-1">Max Occupancy</small>
-                     <span class="fw-bold h5 mb-0 text-secondary-dark">{{ selectedRoom.max_occupancy }} Guests</span>
-                   </div>
-                 </div>
-                 <div class="col-6">
-                   <div class="p-3 bg-light rounded-3">
-                     <small class="text-muted d-block mb-1">Room Size</small>
-                     <span class="fw-bold h5 mb-0 text-secondary-dark">{{ selectedRoom.room_size || '20' }} sq.m</span>
-                   </div>
-                 </div>
-                 <div class="col-6">
-                   <div class="p-3 bg-light rounded-3">
-                     <small class="text-muted d-block mb-1">Bed Configuration</small>
-                     <span class="fw-bold h5 mb-0 text-secondary-dark text-truncate d-block">{{ selectedRoom.bed_type || 'Queen Size' }}</span>
-                   </div>
-                 </div>
+                  <div class="col-6" v-if="selectedRoom.room_type !== 'Family Room' && selectedRoom.room_type !== 'Barkadahan Room'">
+                    <div class="p-3 bg-light rounded-3">
+                      <small class="text-muted d-block mb-1">Nightly Rate</small>
+                      <span class="fw-bold h5 mb-0 text-secondary-dark">₱{{ formatPrice(selectedRoom.price_per_night) }}</span>
+                    </div>
+                  </div>
+                  <div class="col-6" v-if="selectedRoom.room_type === 'Family Room' || selectedRoom.room_type === 'Barkadahan Room'">
+                    <div class="p-3 bg-light rounded-3">
+                      <small class="text-muted d-block mb-1">Per Head Rate</small>
+                      <span class="fw-bold h5 mb-0 text-secondary-dark">₱{{ formatPrice(selectedRoom.price_per_head) }}</span>
+                    </div>
+                  </div>
+                  <div class="col-6">
+                    <div class="p-3 bg-light rounded-3">
+                      <small class="text-muted d-block mb-1">Min Guests</small>
+                      <span class="fw-bold h5 mb-0 text-secondary-dark">{{ selectedRoom.min_occupancy }} Guests</span>
+                    </div>
+                  </div>
+                  <div class="col-6">
+                    <div class="p-3 bg-light rounded-3">
+                      <small class="text-muted d-block mb-1">Max Occupancy</small>
+                      <span class="fw-bold h5 mb-0 text-secondary-dark">{{ selectedRoom.max_occupancy }} Guests</span>
+                    </div>
+                  </div>
+                  <div class="col-6">
+                    <div class="p-3 bg-light rounded-3">
+                      <small class="text-muted d-block mb-1">Room Size</small>
+                      <span class="fw-bold h5 mb-0 text-secondary-dark">{{ selectedRoom.room_size || '20' }} sq.m</span>
+                    </div>
+                  </div>
+                  <div class="col-6">
+                    <div class="p-3 bg-light rounded-3">
+                      <small class="text-muted d-block mb-1">Bed Configuration</small>
+                      <span class="fw-bold h5 mb-0 text-secondary-dark text-truncate d-block">{{ selectedRoom.bed_type || 'Queen Size' }}</span>
+                    </div>
+                  </div>
                </div>
 
                <div class="mt-4">
@@ -505,16 +536,18 @@ const showViewModal = ref(false);
 const selectedRoom = ref(null);
 
 const formTabs = [
-  { id: 'basic', name: 'Identity', icon: 'bi-tag-fill' },
-  { id: 'specs', name: 'Specs & Price', icon: 'bi-gear-wide-connected' },
-  { id: 'media', name: 'Media & Features', icon: 'bi-stars' }
+  { id: 'basic', name: 'Room Info', icon: 'bi-tag-fill' },
+  { id: 'specs', name: 'Price & Size', icon: 'bi-gear-wide-connected' },
+  { id: 'media', name: 'Photos & Amenities', icon: 'bi-stars' }
 ];
 
 const form = reactive({
   room_number: '',
-  room_type: 'Standard Single',
+  room_type: 'Couple Room',
   price_per_night: 1500,
+  price_per_head: 0,
   max_occupancy: 2,
+  min_occupancy: 1,
   description: '',
   status: 'available',
   image: '',
@@ -585,9 +618,11 @@ const openAddModal = () => {
   imagePreview.value = null;
   Object.assign(form, {
     room_number: '',
-    room_type: 'Standard Single',
+    room_type: 'Couple Room',
     price_per_night: 1500,
+    price_per_head: 0,
     max_occupancy: 2,
+    min_occupancy: 1,
     description: '',
     status: 'available',
     image: '',
@@ -613,7 +648,9 @@ const openEditModal = (room) => {
     room_number: room.room_number,
     room_type: room.room_type,
     price_per_night: room.price_per_night,
+    price_per_head: room.price_per_head || 0,
     max_occupancy: room.max_occupancy,
+    min_occupancy: room.min_occupancy || 1,
     description: room.description || '',
     status: room.status,
     image: room.image || '',
@@ -758,16 +795,20 @@ const statusBadgeClass = (status) => {
 
 const getDefaultImage = (type) => {
     const images = {
-        'Standard': '/images/unsplash/standard-room.jpg',
-        'Deluxe': '/images/unsplash/deluxe-room.jpg',
-        'Suite': '/images/unsplash/suite-room.jpg'
+        'Family': '/images/unsplash/suite-room.jpg',
+        'Barkadahan': '/images/unsplash/deluxe-room.jpg',
+        'Couple': '/images/unsplash/standard-room.jpg'
     };
-    return images[type.split(' ')[0]] || images['Standard'];
+    return images[type.split(' ')[0]] || images['Couple'];
 };
 
 const isTabFilled = (tabId) => {
     if (tabId === 'basic') return !!form.room_number && !!form.room_type;
-    if (tabId === 'specs') return form.price_per_night > 0 && form.max_occupancy > 0;
+    if (tabId === 'specs') {
+        const isPerHead = form.room_type === 'Family Room' || form.room_type === 'Barkadahan Room';
+        const priceValid = isPerHead ? (form.price_per_head > 0) : (form.price_per_night > 0);
+        return priceValid && form.max_occupancy > 0 && form.min_occupancy > 0;
+    }
     if (tabId === 'media') return !!form.image || !!form.image_file || form.amenities.length > 0;
     return false;
 };

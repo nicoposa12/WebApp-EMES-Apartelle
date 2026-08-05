@@ -31,30 +31,81 @@ class XenditWebhookController extends Controller
 
         if ($status === 'PAID' || $status === 'SETTLED') {
             if ($externalId) {
-                $reservation = Reservation::find($externalId);
+                $reservationId = explode('-', $externalId)[0];
+                $reservation = Reservation::find($reservationId);
                 if ($reservation) {
-                    $paymentStatus = ($reservation->payment_option === 'half') ? 'partially_paid' : 'paid';
-                    $reservation->update([
-                        'status' => 'confirmed',
-                        'payment_status' => $paymentStatus,
-                    ]);
+                    $isExtension = str_contains($externalId, '-ext-');
+                    
+                    // 1. Determine payment amount
+                    $paidAmount = $payload['paid_amount'] ?? $payload['amount'] ?? 0;
+                    if ($paidAmount == 0) {
+                        $paidAmount = ($reservation->payment_option === 'half')
+                            ? ($reservation->downpayment_amount ?: ($reservation->total_amount / 2))
+                            : $reservation->total_amount;
+                    }
 
-                    $paidAmount = $payload['paid_amount'] ?? ($reservation->payment_option === 'half' ? $reservation->downpayment_amount : $reservation->total_amount);
+                    // 2. Record the payment
+                    // Check if payment already recorded
+                    $exists = Payment::where('reservation_id', $reservation->id)
+                        ->where('paymongo_payment_id', $paymentId)
+                        ->first();
 
-                    Payment::create([
-                        'reservation_id' => $reservation->id,
-                        'paymongo_payment_id' => $paymentId, 
-                        'amount' => $paidAmount,
-                        'method' => $payload['payment_channel'] ?? ($payload['payment_method'] ?? 'Xendit'),
-                        'status' => 'Succeeded',
-                    ]);
+                    if (!$exists) {
+                        // Check for MANUAL- payment only if NOT a stay extension
+                        $manualPayment = null;
+                        if (!$isExtension) {
+                            $manualPayment = Payment::where('reservation_id', $reservation->id)
+                                ->where('paymongo_payment_id', 'LIKE', 'MANUAL-%')
+                                ->where('status', 'Succeeded')
+                                ->first();
+                        }
+
+                        if ($manualPayment) {
+                            $manualPayment->update([
+                                'paymongo_payment_id' => $paymentId,
+                                'amount' => $paidAmount,
+                                'method' => $payload['payment_channel'] ?? ($payload['payment_method'] ?? 'Xendit'),
+                            ]);
+                        } else {
+                            Payment::create([
+                                'reservation_id' => $reservation->id,
+                                'paymongo_payment_id' => $paymentId, 
+                                'amount' => $paidAmount,
+                                'method' => $payload['payment_channel'] ?? ($payload['payment_method'] ?? 'Xendit'),
+                                'status' => 'Succeeded',
+                            ]);
+                        }
+                    }
+
+                    // 3. Recalculate payment status dynamically based on total paid amount
+                    $totalPaid = Payment::where('reservation_id', $reservation->id)
+                        ->where('status', 'Succeeded')
+                        ->sum('amount');
+
+                    if ($totalPaid >= $reservation->total_amount) {
+                        $paymentStatus = 'paid';
+                    } else if ($totalPaid > 0) {
+                        $paymentStatus = 'partially_paid';
+                    } else {
+                        $paymentStatus = 'unpaid';
+                    }
+
+                    // 4. Update reservation status safely
+                    $updateData = ['payment_status' => $paymentStatus];
+                    
+                    // Only transition status to confirmed if it is currently pending
+                    if ($reservation->status === 'pending') {
+                        $updateData['status'] = 'confirmed';
+                    }
+
+                    $reservation->update($updateData);
 
                     $reservation->load('room', 'user');
-                    if ($reservation->user) {
+                    if ($reservation->user && $reservation->status === 'confirmed') {
                         $reservation->user->notify(new \App\Notifications\BookingConfirmed($reservation));
                     }
 
-                    Log::info('Reservation Confirmed via Xendit: ' . $externalId);
+                    Log::info('Reservation payment updated via Xendit: ' . $externalId . ', Payment Status: ' . $paymentStatus);
                 }
             }
         }

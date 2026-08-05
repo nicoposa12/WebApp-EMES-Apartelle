@@ -1,8 +1,24 @@
 <template>
   <div class="payments-view">
     <div class="card border-0 shadow-sm rounded-4 overflow-hidden animate-fade-up">
-      <div class="card-header bg-white py-4 px-4 border-0 d-flex justify-content-between align-items-center">
+      <div class="card-header bg-white py-4 px-4 border-0 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
         <h5 class="serif-font fw-bold mb-0 text-secondary-dark">Payment Transactions</h5>
+        
+        <!-- Date Filters -->
+        <div class="d-flex flex-wrap align-items-center gap-3">
+          <div class="d-flex align-items-center gap-2">
+            <span class="small text-muted fw-bold text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;">From:</span>
+            <input type="date" class="form-control form-control-sm border bg-light px-2.5 rounded-3" v-model="startDate" style="width: 140px; font-size: 0.85rem; font-weight: 500;">
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span class="small text-muted fw-bold text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;">To:</span>
+            <input type="date" class="form-control form-control-sm border bg-light px-2.5 rounded-3" v-model="endDate" style="width: 140px; font-size: 0.85rem; font-weight: 500;">
+          </div>
+          <button v-if="startDate || endDate" @click="clearDateFilters" class="btn btn-sm btn-outline-danger rounded-3 d-flex align-items-center gap-1 px-3" style="font-size: 0.8rem; font-weight: 600;">
+            <i class="bi bi-x-lg"></i>
+            <span>Clear</span>
+          </button>
+        </div>
       </div>
       <div class="card-body p-0">
         <div v-if="loading" class="text-center py-5">
@@ -74,10 +90,26 @@ import axios from 'axios';
 
 const filter = ref('all'); 
 const searchQuery = ref('');
+const startDate = ref('');
+const endDate = ref('');
 const currentPage = ref(1);
 const pageSize = ref(5);
 const loading = ref(true);
 const payments = ref([]);
+
+const clearDateFilters = () => {
+  startDate.value = '';
+  endDate.value = '';
+};
+
+const getLocalDateString = (dateString) => {
+  if (!dateString) return '';
+  const d = new Date(dateString);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 const fetchPayments = async () => {
   try {
@@ -139,7 +171,23 @@ const mapPaymentMethod = (method) => {
 };
 
 const filteredPayments = computed(() => {
-  return payments.value;
+  let list = payments.value;
+
+  if (startDate.value) {
+    list = list.filter(p => {
+      const pDateStr = getLocalDateString(p.created_at);
+      return pDateStr >= startDate.value;
+    });
+  }
+
+  if (endDate.value) {
+    list = list.filter(p => {
+      const pDateStr = getLocalDateString(p.created_at);
+      return pDateStr <= endDate.value;
+    });
+  }
+
+  return list;
 });
 
 const paginatedPayments = computed(() => {
@@ -149,7 +197,7 @@ const paginatedPayments = computed(() => {
 });
 
 // Reset to page 1 when searching or filtering
-watch([searchQuery, filter], () => {
+watch([searchQuery, filter, startDate, endDate], () => {
   currentPage.value = 1;
 });
 </script>

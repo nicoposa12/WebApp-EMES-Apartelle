@@ -305,16 +305,16 @@ const formatIconClass = (icon) => {
 
         <div v-if="loadingRooms" class="row g-4 justify-content-center">
           <div v-for="n in 3" :key="'skel-' + n" class="col-lg-4 col-md-6">
-            <div class="room-card-premium bg-white rounded-5 overflow-hidden border-0" style="box-shadow: 0 4px 20px rgba(0,0,0,0.04);">
+            <div class="room-card bg-white rounded-4 overflow-hidden border-0 shadow-sm">
               <div class="skeleton-image skeleton-shimmer" style="height: 280px;"></div>
-              <div class="p-4 text-center">
-                <div class="skeleton-line skeleton-shimmer mx-auto mb-2" style="width: 50%; height: 10px;"></div>
-                <div class="skeleton-line skeleton-shimmer mx-auto mb-3" style="width: 60%; height: 20px;"></div>
-                <div class="d-flex justify-content-center gap-3 mb-4">
-                  <div class="skeleton-line skeleton-shimmer" style="width: 60px; height: 12px;"></div>
-                  <div class="skeleton-line skeleton-shimmer" style="width: 60px; height: 12px;"></div>
+              <div class="p-4">
+                <div class="skeleton-line skeleton-shimmer mb-2" style="width: 45%; height: 10px;"></div>
+                <div class="skeleton-line skeleton-shimmer mb-3" style="width: 60%; height: 20px;"></div>
+                <div class="d-flex gap-3 mb-4">
+                  <div class="skeleton-line skeleton-shimmer" style="width: 70px; height: 14px;"></div>
+                  <div class="skeleton-line skeleton-shimmer" style="width: 50px; height: 14px;"></div>
                 </div>
-                <div class="skeleton-btn skeleton-shimmer mx-auto" style="width: 100%; height: 38px; border-radius: 50px;"></div>
+                <div class="skeleton-btn skeleton-shimmer" style="width: 100%; height: 38px; border-radius: 50px;"></div>
               </div>
             </div>
           </div>
@@ -322,22 +322,45 @@ const formatIconClass = (icon) => {
 
         <div v-else class="row g-4 justify-content-center">
           <div v-for="(room, index) in rooms" :key="room.id" class="col-lg-4 col-md-6 animate-fade-up" :style="{ animationDelay: index * 100 + 'ms' }">
-            <div class="room-card-premium card-hover h-100 bg-white rounded-5 shadow-sm overflow-hidden border-0">
+            <div class="room-card card-hover shadow-gold-sm border-0 bg-white rounded-4 overflow-hidden d-flex flex-column h-100">
               <div class="room-card-image">
                 <img :src="getRoomImage(room)" :alt="room.room_type" loading="lazy">
                 <span class="room-badge" :class="room.status === 'available' ? 'bg-success text-white' : 'bg-danger text-white'">
                     {{ room.status === 'available' ? 'Available' : 'Occupied' }}
                 </span>
-              </div>
-              <div class="room-card-body p-4 text-center">
-                <span class="text-gold small fw-bold text-uppercase tracking-widest mb-2 d-block">{{ room.room_type }}</span>
-                <h4 class="room-card-title serif-font mb-3">Room #{{ room.room_number }}</h4>
-                <div class="d-flex justify-content-center gap-3 mb-4 text-muted small">
-                    <span v-if="room.room_size"><i class="bi bi-aspect-ratio me-1"></i>{{ room.room_size }} m²</span>
-                    <span v-if="room.min_occupancy && room.min_occupancy > 1"><i class="bi bi-people me-1"></i>{{ room.min_occupancy }} to {{ room.max_occupancy }} Guests</span>
-                    <span v-else><i class="bi bi-people me-1"></i>Max {{ room.max_occupancy }} Guests</span>
+                <div class="room-size-tag" v-if="room.room_size">
+                   <i class="bi bi-arrows-fullscreen small me-1"></i>
+                   {{ room.room_size }} m²
                 </div>
-                <router-link :to="`/rooms/${room.id}`" class="btn btn-gold w-100 py-2 rounded-pill fw-bold text-uppercase small">
+              </div>
+              <div class="room-card-body p-4 d-flex flex-column flex-grow-1">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-gold small fw-bold text-uppercase tracking-widest">{{ room.room_type }}</span>
+                    <div class="room-bed-type small text-muted" v-if="room.bed_type">
+                        <i class="bi bi-door-open me-1"></i>{{ room.bed_type }}
+                    </div>
+                </div>
+                <h4 class="room-card-title serif-font mb-2">Room #{{ room.room_number }}</h4>
+                
+                <div class="room-card-price mb-3">
+                  <span class="currency">₱</span>
+                  <span class="price">
+                    {{ formatPrice((room.room_type === 'Family Room' || room.room_type === 'Barkadahan Room') ? room.price_per_head : room.price_per_night) }}
+                  </span>
+                  <span class="period">
+                    {{ (room.room_type === 'Family Room' || room.room_type === 'Barkadahan Room') ? '/ head / night' : '/ night' }}
+                  </span>
+                </div>
+
+                <div class="room-features mb-4">
+                  <div class="feature-pill" title="Occupancy">
+                    <i class="bi bi-people-fill text-gold"></i> 
+                    <span v-if="room.min_occupancy && room.min_occupancy > 1">{{ room.min_occupancy }} to {{ room.max_occupancy }} Guests</span>
+                    <span v-else>{{ room.max_occupancy }} Guests</span>
+                  </div>
+                </div>
+                
+                <router-link :to="`/rooms/${room.id}`" class="btn btn-gold-outline w-100 py-2 rounded-pill fw-bold text-uppercase small mt-auto text-center text-decoration-none">
                   View Room
                 </router-link>
               </div>
@@ -469,50 +492,62 @@ const formatIconClass = (icon) => {
             <!-- Modal Body -->
             <div class="modal-body bg-cream p-4">
               <div class="row g-4 justify-content-center">
-                <div v-for="(room, index) in availableRooms" :key="room.id" class="col-lg-6 col-xl-4 animate-fade-up" :style="{ animationDelay: index * 50 + 'ms' }">
-                  <div class="room-card-premium card-hover h-100 bg-white rounded-5 shadow-sm overflow-hidden border-0 d-flex flex-column">
+                <div v-for="(room, index) in availableRooms" :key="room.id" class="col-12 animate-fade-up" :style="{ animationDelay: index * 50 + 'ms' }">
+                  <div class="room-horizontal-card bg-white rounded-4 shadow-sm overflow-hidden border-0 d-flex flex-column flex-md-row">
                     <!-- Image Area -->
-                    <div class="room-card-image position-relative" style="height: 200px;">
+                    <div class="room-card-image position-relative flex-shrink-0">
                       <img :src="getRoomImage(room)" :alt="room.room_type" loading="lazy" class="w-100 h-100 object-fit-cover">
                       <span class="room-badge bg-success text-white">
                           Available
                       </span>
                       <div class="room-size-tag" v-if="room.room_size">
-                         <i class="bi bi-aspect-ratio me-1"></i>{{ room.room_size }} m²
+                         <i class="bi bi-arrows-fullscreen small me-1"></i>{{ room.room_size }} m²
                       </div>
                     </div>
                     
                     <!-- Content Area -->
-                    <div class="room-card-body p-4 text-center d-flex flex-column flex-grow-1">
-                      <span class="text-gold small fw-bold text-uppercase tracking-widest mb-1 d-block">{{ room.room_type }}</span>
-                      <h4 class="room-card-title serif-font mb-2">Room #{{ room.room_number }}</h4>
-                      
-                      <!-- Features Row -->
-                      <div class="d-flex justify-content-center gap-2 mb-3 text-muted small flex-wrap">
-                          <span class="feature-badge" v-if="room.bed_type"><i class="bi bi-door-open me-1"></i>{{ room.bed_type }}</span>
-                          <span class="feature-badge" v-if="room.min_occupancy && room.min_occupancy > 1"><i class="bi bi-people me-1"></i>{{ room.min_occupancy }} to {{ room.max_occupancy }} Guests</span>
-                          <span class="feature-badge" v-else><i class="bi bi-people me-1"></i>Max {{ room.max_occupancy }} Guests</span>
+                    <div class="room-card-body p-4 d-flex flex-column flex-grow-1 justify-content-between">
+                      <div>
+                        <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                          <span class="text-gold small fw-bold text-uppercase tracking-widest">{{ room.room_type }}</span>
+                          <span class="feature-badge" v-if="room.bed_type">
+                            <i class="bi bi-door-open me-1"></i>{{ room.bed_type }}
+                          </span>
+                        </div>
+                        <h4 class="room-card-title serif-font mb-2">Room #{{ room.room_number }}</h4>
+                        
+                        <!-- Features Row -->
+                        <div class="d-flex gap-3 mb-3 text-muted small flex-wrap align-items-center">
+                          <span class="d-flex align-items-center gap-1">
+                            <i class="bi bi-people-fill text-gold"></i>
+                            <span v-if="room.min_occupancy && room.min_occupancy > 1">{{ room.min_occupancy }} to {{ room.max_occupancy }} Guests</span>
+                            <span v-else>Max {{ room.max_occupancy }} Guests</span>
+                          </span>
+                          <span v-if="room.room_size" class="bullet-divider opacity-50">•</span>
+                          <span v-if="room.room_size" class="d-flex align-items-center gap-1">
+                            <i class="bi bi-arrows-fullscreen text-gold"></i> {{ room.room_size }} m²
+                          </span>
+                        </div>
+                        
+                        <p class="room-card-description text-muted small mb-4 line-clamp-2">{{ room.description }}</p>
                       </div>
                       
-                      <p class="room-card-description text-muted small mb-4 line-clamp-3 text-start">{{ room.description }}</p>
-                      
-                      <!-- Price display -->
-                      <div class="room-price-section mt-auto pt-3 border-top mb-3 d-flex justify-content-between align-items-center">
-                        <span class="small text-muted text-uppercase fw-bold">Rate</span>
-                        <div class="d-flex align-items-baseline">
+                      <!-- Price & Booking Row -->
+                      <div class="room-price-cta-row d-flex flex-wrap justify-content-between align-items-center pt-3 border-top mt-auto gap-3">
+                        <div class="room-price-section d-flex align-items-baseline">
                           <span class="currency text-gold fw-bold">₱</span>
                           <span class="h3 serif-font text-gold mb-0 fw-bold">
                             {{ formatPrice((room.room_type === 'Family Room' || room.room_type === 'Barkadahan Room') ? room.price_per_head : room.price_per_night) }}
                           </span>
-                          <span class="small text-muted">
+                          <span class="small text-muted ms-1">
                             {{ (room.room_type === 'Family Room' || room.room_type === 'Barkadahan Room') ? '/head/night' : '/night' }}
                           </span>
                         </div>
+                        
+                        <button @click="bookThisRoom(room.id)" class="btn btn-gold px-4 py-2.5 rounded-pill fw-bold text-uppercase small transition-all btn-book-now text-decoration-none border-0">
+                          Book Room Now
+                        </button>
                       </div>
-                      
-                      <button @click="bookThisRoom(room.id)" class="btn btn-gold w-100 py-2.5 rounded-pill fw-bold text-uppercase small transition-all">
-                        Book Room Now
-                      </button>
                     </div>
                   </div>
                 </div>
@@ -698,13 +733,13 @@ const formatIconClass = (icon) => {
 }
 
 /* Room Cards */
-.room-card-premium {
-    transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+.room-card {
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.room-card-premium:hover {
-    transform: translateY(-12px);
-    box-shadow: 0 25px 50px rgba(0,0,0,0.12);
+.room-card:hover {
+  transform: translateY(-12px);
+  box-shadow: 0 25px 55px rgba(188, 145, 81, 0.15) !important;
 }
 
 .room-card-image {
@@ -719,7 +754,7 @@ const formatIconClass = (icon) => {
     transition: transform 1.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.room-card-premium:hover .room-card-image img {
+.room-card:hover .room-card-image img {
     transform: scale(1.1);
 }
 
@@ -733,6 +768,127 @@ const formatIconClass = (icon) => {
     border-radius: 50px;
     letter-spacing: 1px;
     z-index: 2;
+}
+
+.room-size-tag {
+    position: absolute;
+    bottom: 1.25rem;
+    right: 1.25rem;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 0.4rem 1rem;
+    border-radius: 50px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--secondary-dark);
+    backdrop-filter: blur(5px);
+    z-index: 2;
+}
+
+.room-card-price {
+    display: flex;
+    align-items: baseline;
+    gap: 0.3rem;
+}
+
+.room-card-price .currency {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--text-dark);
+}
+
+.room-card-price .price {
+  font-family: var(--font-serif);
+  font-weight: 700;
+  font-size: 1.8rem;
+  color: var(--primary-gold);
+}
+
+.room-card-price .period {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.room-features {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.feature-pill {
+    background: #f8fafc;
+    border: 1px solid #f1f5f9;
+    padding: 0.4rem 0.9rem;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    color: #64748b;
+    font-weight: 700;
+}
+
+.feature-pill i {
+    color: var(--primary-gold);
+    font-size: 1.1rem;
+}
+
+.btn-gold-outline {
+    background: transparent;
+    border: 2px solid var(--primary-gold);
+    color: var(--primary-gold);
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-gold-outline:hover {
+    background: var(--primary-gold);
+    color: white;
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px rgba(188, 145, 81, 0.3);
+}
+
+/* Horizontal Room Card */
+.room-horizontal-card {
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+}
+
+.room-horizontal-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+}
+
+.room-horizontal-card .room-card-image {
+  width: 100%;
+  height: 220px;
+}
+
+.room-horizontal-card .room-card-image img {
+  transition: transform 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.room-horizontal-card:hover .room-card-image img {
+  transform: scale(1.08);
+}
+
+.room-horizontal-card .room-card-body {
+  padding: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .room-horizontal-card {
+    flex-direction: row !important;
+  }
+  .room-horizontal-card .room-card-image {
+    width: 320px;
+    height: auto !important;
+    min-height: 250px;
+  }
+  .room-horizontal-card .room-card-body {
+    padding: 1.75rem 2rem;
+  }
 }
 
 /* Amenities Card */

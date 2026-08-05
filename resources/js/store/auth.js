@@ -80,7 +80,12 @@ export const useAuth = () => {
             const response = await axios.get('/api/user');
             setUser(response.data);
         } catch (error) {
-            clearAuth();
+            // Only clear auth on 401 Unauthorized (token is truly invalid/expired).
+            // For transient errors (network hiccups, timeouts, race conditions during
+            // navigation), preserve the cached user state to avoid blank screens.
+            if (error.response && error.response.status === 401) {
+                clearAuth();
+            }
             throw error;
         }
     };

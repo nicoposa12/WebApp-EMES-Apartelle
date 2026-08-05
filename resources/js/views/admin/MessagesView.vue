@@ -283,7 +283,10 @@
                         <img :src="getRoomImage(room)" class="rounded-3 shadow-sm border" style="width: 50px; height: 40px; object-fit: cover;">
                         <div class="overflow-hidden">
                           <span class="d-block small fw-bold text-truncate text-secondary-dark">{{ room.room_type }} #{{ room.room_number }}</span>
-                          <span class="d-block x-small text-gold fw-bold">₱{{ room.price_per_night }} <span class="text-muted fw-normal">/ night</span></span>
+                          <span class="d-block x-small text-gold fw-bold">
+                            ₱{{ (room.room_type === 'Family Room' || room.room_type === 'Barkadahan Room') ? formatPrice(room.price_per_head) : formatPrice(room.price_per_night) }}
+                            <span class="text-muted fw-normal">/ {{ (room.room_type === 'Family Room' || room.room_type === 'Barkadahan Room') ? 'head / night' : 'night' }}</span>
+                          </span>
                         </div>
                      </button>
                    </li>
@@ -721,6 +724,10 @@ const getRoomImage = (room) => {
   if (type.includes('suite')) return '/images/unsplash/suite-room.jpg';
   if (type.includes('deluxe')) return '/images/unsplash/deluxe-room.jpg';
   return '/images/unsplash/standard-room.jpg';
+};
+
+const formatPrice = (price) => {
+  return parseFloat(price || 0).toLocaleString();
 };
 
 onMounted(() => {

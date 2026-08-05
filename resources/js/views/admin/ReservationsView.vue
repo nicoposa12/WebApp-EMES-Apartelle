@@ -15,10 +15,13 @@
           </div>
         </div>
         <div class="d-flex gap-2">
-           <div class="input-group input-group-sm" style="width: 280px;">
+           <div class="input-group input-group-sm" style="width: 240px;">
              <span class="input-group-text bg-light border-0"><i class="bi bi-search"></i></span>
              <input type="text" class="form-control bg-light border-0" placeholder="Search ID, guest or room..." v-model="searchQuery">
            </div>
+           <button class="btn btn-outline-gold btn-sm px-3 fw-bold text-uppercase shadow-sm" @click="openManageBlockedDatesModal">
+             <i class="bi bi-slash-circle me-1"></i> Block Dates
+           </button>
            <button class="btn btn-gold btn-sm px-3 fw-bold text-uppercase shadow-sm" @click="openNewBookingModal">
              <i class="bi bi-plus-lg me-1"></i> New Booking
            </button>
@@ -190,10 +193,13 @@
                     :key="booking.id"
                     class="booking-ribbon"
                     :class="booking.status"
-                    @click="openReservationDetailModal(booking)"
-                    :title="`${booking.user?.name || 'Guest'} - Room ${booking.room?.room_number}`"
+                    @click="booking.isBlock ? openManageBlockedDatesModal() : openReservationDetailModal(booking)"
+                    :title="booking.isBlock ? `Blocked: ${booking.user?.name}` : `${booking.user?.name || 'Guest'} - Room ${booking.room?.room_number}`"
                   >
-                    <span class="ribbon-text">#{{ booking.room?.room_number }} {{ booking.user?.name || 'Guest' }}</span>
+                    <span class="ribbon-text d-flex align-items-center gap-1">
+                      <i v-if="booking.isBlock" class="bi bi-slash-circle me-1 small"></i>
+                      #{{ booking.room?.room_number }} {{ booking.user?.name || 'Guest' }}
+                    </span>
                   </div>
                 </div>
               </template>
@@ -595,12 +601,99 @@
             </div>
           </div>
         </div>
+
+        <!-- ========== MANAGE BLOCKED DATES MODAL ========== -->
+        <div v-if="showBlockedDatesModal" class="modal-backdrop fade show" style="z-index: 1050;" @click="showBlockedDatesModal = false"></div>
+        <div v-if="showBlockedDatesModal" class="modal fade show d-block" tabindex="-1" style="z-index: 1055;" @click.self="showBlockedDatesModal = false">
+          <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 rounded-4 overflow-hidden shadow-2xl">
+              <!-- Modal Header -->
+              <div class="modal-header bg-white border-bottom p-4 d-flex justify-content-between align-items-center">
+                <h3 class="modal-title serif-font text-secondary-dark mb-0 fs-4">Manage Blocked Dates</h3>
+                <button type="button" class="btn-close bg-light rounded-circle p-2 shadow-none" @click="showBlockedDatesModal = false" aria-label="Close"></button>
+              </div>
+              <!-- Modal Body -->
+              <div class="modal-body bg-cream p-4">
+                <div class="row g-4">
+                  <!-- Add New Block Form -->
+                  <div class="col-md-5 border-end pe-md-4">
+                    <h5 class="serif-font fw-bold text-secondary-dark mb-3">Block a Date Range</h5>
+                    <form @submit.prevent="submitBlockDates">
+                      <div class="mb-3">
+                        <label class="form-label-custom small fw-bold text-uppercase text-muted mb-1 d-block">Select Room</label>
+                        <select v-model="blockForm.room_id" class="form-select rounded-3">
+                          <option value="">Global (Block All Rooms)</option>
+                          <option v-for="room in allRooms" :key="room.id" :value="room.id">
+                            Room #{{ room.room_number }} ({{ room.room_type }})
+                          </option>
+                        </select>
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label-custom small fw-bold text-uppercase text-muted mb-1 d-block">Start Date & Time</label>
+                        <input type="datetime-local" v-model="blockForm.start_date" class="form-control rounded-3" required>
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label-custom small fw-bold text-uppercase text-muted mb-1 d-block">End Date & Time</label>
+                        <input type="datetime-local" v-model="blockForm.end_date" class="form-control rounded-3" required>
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label-custom small fw-bold text-uppercase text-muted mb-1 d-block">Reason / Event Name</label>
+                        <input type="text" v-model="blockForm.reason" placeholder="e.g. Summer Renovation" class="form-control rounded-3" required>
+                      </div>
+                      <button type="submit" class="btn btn-gold w-100 rounded-pill shadow-md mt-2 fw-bold text-uppercase" :disabled="isSubmittingBlock" style="font-size: 0.8rem; padding: 0.6rem;">
+                        <span v-if="isSubmittingBlock" class="spinner-border spinner-border-sm me-2"></span>
+                        Block Selected Dates
+                      </button>
+                    </form>
+                  </div>
+
+                  <!-- List of Blocked Dates -->
+                  <div class="col-md-7 ps-md-4">
+                    <h5 class="serif-font fw-bold text-secondary-dark mb-3">Current Active Blocks</h5>
+                    <div class="table-responsive rounded-3 border bg-white" style="max-height: 350px; overflow-y: auto;">
+                      <table class="table table-hover align-middle mb-0" style="font-size: 0.8rem;">
+                        <thead class="sticky-top bg-light border-bottom">
+                          <tr>
+                            <th class="border-0 text-muted fw-bold text-uppercase p-2" style="font-size: 0.7rem;">Room</th>
+                            <th class="border-0 text-muted fw-bold text-uppercase p-2" style="font-size: 0.7rem;">Dates</th>
+                            <th class="border-0 text-muted fw-bold text-uppercase p-2" style="font-size: 0.7rem;">Reason</th>
+                            <th class="border-0 text-muted fw-bold text-uppercase p-2 text-end" style="font-size: 0.7rem;">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr v-for="block in blockedDates" :key="block.id">
+                            <td class="p-2 fw-bold text-secondary-dark">
+                              {{ block.room ? `Room #${block.room.room_number}` : 'Global' }}
+                            </td>
+                            <td class="p-2 text-muted" style="font-size: 0.75rem; line-height: 1.2;">
+                              {{ formatDateShort(block.start_date) }} - <br>
+                              {{ formatDateShort(block.end_date) }}
+                            </td>
+                            <td class="p-2 text-dark">{{ block.reason || 'N/A' }}</td>
+                            <td class="p-2 text-end">
+                              <button type="button" class="btn btn-sm btn-outline-danger border-0 rounded-circle d-inline-flex align-items-center justify-content-center p-1" @click="deleteBlockedDate(block.id)" title="Unblock Dates" style="width: 28px; height: 28px;">
+                                <i class="bi bi-trash"></i>
+                              </button>
+                            </td>
+                          </tr>
+                          <tr v-if="blockedDates.length === 0">
+                            <td colspan="4" class="text-center py-4 text-muted">No active blocks found.</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
      </Teleport>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue';
+import { ref, onMounted, computed, watch, reactive } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -610,6 +703,18 @@ import AdminPagination from '../../components/AdminPagination.vue';
 const router = useRouter();
 const route = useRoute();
 const reservations = ref([]);
+const blockedDates = ref([]);
+const showBlockedDatesModal = ref(false);
+const isSubmittingBlock = ref(false);
+const allRooms = ref([]);
+
+const blockForm = reactive({
+  room_id: '',
+  start_date: '',
+  end_date: '',
+  reason: ''
+});
+
 const searchQuery = ref('');
 const currentPage = ref(1);
 const pageSize = ref(5);
@@ -662,11 +767,33 @@ const isTodayDate = (dateStr) => {
 
 const getReservationsForDate = (dateStr) => {
   if (!dateStr) return [];
-  return reservations.value.filter(res => {
+  
+  // 1. Get reservations for this date
+  const dateReservations = reservations.value.filter(res => {
     const checkInDateStr = (res.check_in || '').split(' ')[0] || (res.check_in || '').split('T')[0];
     const checkOutDateStr = (res.check_out || '').split(' ')[0] || (res.check_out || '').split('T')[0];
     return dateStr >= checkInDateStr && dateStr <= checkOutDateStr;
   });
+
+  // 2. Get blocked dates for this date
+  const dateBlocks = blockedDates.value.filter(block => {
+    const startDateStr = (block.start_date || '').split(' ')[0] || (block.start_date || '').split('T')[0];
+    const endDateStr = (block.end_date || '').split(' ')[0] || (block.end_date || '').split('T')[0];
+    return dateStr >= startDateStr && dateStr <= endDateStr;
+  }).map(block => {
+    return {
+      id: `block-${block.id}`,
+      isBlock: true,
+      blockData: block,
+      status: 'blocked',
+      room: block.room ? block.room : { room_number: 'All' },
+      user: { name: block.reason || 'Blocked (Event/Maintenance)' },
+      check_in: block.start_date,
+      check_out: block.end_date
+    };
+  });
+
+  return [...dateReservations, ...dateBlocks];
 };
 
 const handleEmptyDayClick = (dateStr) => {
@@ -1213,7 +1340,95 @@ const totalReservationNights = (res) => {
   return nights > 0 ? nights : 0;
 };
 
-onMounted(fetchReservations);
+const fetchBlockedDates = async () => {
+  try {
+    const response = await axios.get('/api/admin/blocked-dates');
+    blockedDates.value = response.data;
+  } catch (err) {
+    console.error('Failed to fetch blocked dates', err);
+  }
+};
+
+
+const openManageBlockedDatesModal = () => {
+  blockForm.room_id = '';
+  blockForm.start_date = '';
+  blockForm.end_date = '';
+  blockForm.reason = '';
+  showBlockedDatesModal.value = true;
+  fetchAllRooms();
+  fetchBlockedDates();
+};
+
+const fetchAllRooms = async () => {
+  try {
+    const response = await axios.get('/api/rooms');
+    allRooms.value = response.data;
+  } catch (err) {
+    console.error('Failed to fetch rooms', err);
+  }
+};
+
+const submitBlockDates = async () => {
+  if (blockForm.end_date <= blockForm.start_date) {
+    notify.error('Invalid Dates', 'End date must be after start date.');
+    return;
+  }
+  
+  isSubmittingBlock.value = true;
+  try {
+    const response = await axios.post('/api/admin/blocked-dates', blockForm);
+    notify.success('Success', response.data.message || 'Dates blocked successfully.');
+    // Refresh lists
+    fetchBlockedDates();
+    fetchReservations(); // To clear cache and reload
+    // Reset form
+    blockForm.room_id = '';
+    blockForm.start_date = '';
+    blockForm.end_date = '';
+    blockForm.reason = '';
+  } catch (err) {
+    console.error('Failed to block dates', err);
+    notify.error('Failed', err.response?.data?.message || 'Could not block dates.');
+  } finally {
+    isSubmittingBlock.value = false;
+  }
+};
+
+const deleteBlockedDate = async (id) => {
+  const isConfirmed = await Swal.fire({
+    title: 'Unblock Dates?',
+    text: 'Are you sure you want to remove this block? Guests will be able to reserve during these dates again.',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#dc3545',
+    cancelButtonColor: '#718096',
+    confirmButtonText: 'Yes, Unblock'
+  });
+  
+  if (isConfirmed.isConfirmed) {
+    try {
+      const response = await axios.delete(`/api/admin/blocked-dates/${id}`);
+      notify.success('Success', response.data.message || 'Dates unblocked successfully.');
+      fetchBlockedDates();
+      fetchReservations();
+    } catch (err) {
+      console.error('Failed to delete blocked date', err);
+      notify.error('Failed', 'Could not delete blocked date.');
+    }
+  }
+};
+
+const formatDateShort = (dateStr) => {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+};
+
+onMounted(() => {
+  fetchReservations();
+  fetchBlockedDates();
+});
 </script>
 
 <style scoped>
@@ -1457,6 +1672,13 @@ onMounted(fetchReservations);
   background-color: #FEE2E2; /* Red 100 */
   color: #DC2626; /* Red 600 */
   border-left: 3px solid #EF4444;
+}
+
+.booking-ribbon.blocked {
+  background-color: #F1F5F9; /* Slate 100 */
+  color: #475569; /* Slate 600 */
+  border-left: 3px solid #64748B;
+  background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(100, 116, 139, 0.05) 10px, rgba(100, 116, 139, 0.05) 20px);
 }
 
 .legend-dot {

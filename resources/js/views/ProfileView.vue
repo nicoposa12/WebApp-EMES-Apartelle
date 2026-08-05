@@ -1,5 +1,6 @@
 <template>
-  <div class="profile-page py-5">
+  <div class="profile-view-container">
+    <div class="profile-page py-5">
     <div class="container">
     <div class="row justify-content-center">
       <div class="col-md-9">
@@ -133,8 +134,8 @@
             </div>
             
             <div class="mt-5 d-flex gap-3 justify-content-end">
-              <button class="btn btn-outline-dark-custom px-4 hover-lift">Change Password</button>
-              <button class="btn btn-gold px-4 shadow-md hover-lift">Edit Profile</button>
+              <button @click="openChangePasswordModal" class="btn btn-outline-dark-custom px-4 hover-lift">Change Password</button>
+              <button @click="openEditProfileModal" class="btn btn-gold px-4 shadow-md hover-lift">Edit Profile</button>
             </div>
           </div>
         </div>
@@ -142,16 +143,234 @@
     </div>
   </div>
 </div>
+
+<!-- ========== EDIT PROFILE MODAL ========== -->
+<div v-if="showEditProfileModal" class="modal-backdrop fade show" style="z-index: 1050;" @click="showEditProfileModal = false"></div>
+<div v-if="showEditProfileModal" class="modal fade show d-block" tabindex="-1" style="z-index: 1055;" @click.self="showEditProfileModal = false">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 rounded-4 overflow-hidden shadow-2xl">
+      <!-- Modal Header -->
+      <div class="modal-header bg-white border-bottom p-4 d-flex justify-content-between align-items-center">
+        <h3 class="modal-title serif-font text-secondary-dark mb-0 fs-4">Edit Profile</h3>
+        <button type="button" class="btn-close bg-light rounded-circle p-2" @click="showEditProfileModal = false" aria-label="Close"></button>
+      </div>
+      <!-- Modal Body -->
+      <div class="modal-body bg-cream p-4">
+        <form @submit.prevent="submitProfileUpdate">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label small text-muted text-uppercase tracking-wider fw-bold">First Name</label>
+              <input type="text" v-model="profileForm.first_name" class="form-control rounded-3" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small text-muted text-uppercase tracking-wider fw-bold">Last Name</label>
+              <input type="text" v-model="profileForm.last_name" class="form-control rounded-3" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small text-muted text-uppercase tracking-wider fw-bold">Phone Number</label>
+              <input type="text" v-model="profileForm.phone" class="form-control rounded-3" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small text-muted text-uppercase tracking-wider fw-bold">Birthdate</label>
+              <input type="date" v-model="profileForm.birthdate" class="form-control rounded-3" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small text-muted text-uppercase tracking-wider fw-bold">Gender</label>
+              <select v-model="profileForm.gender" class="form-select rounded-3" required>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small text-muted text-uppercase tracking-wider fw-bold">Zip Code</label>
+              <input type="text" v-model="profileForm.zip_code" class="form-control rounded-3" required>
+            </div>
+            <div class="col-md-8">
+              <label class="form-label small text-muted text-uppercase tracking-wider fw-bold">Address</label>
+              <input type="text" v-model="profileForm.address" class="form-control rounded-3" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small text-muted text-uppercase tracking-wider fw-bold">City</label>
+              <input type="text" v-model="profileForm.city" class="form-control rounded-3" required>
+            </div>
+          </div>
+          <div class="mt-4 d-flex gap-3 justify-content-end">
+            <button type="button" class="btn btn-secondary px-4 rounded-pill" @click="showEditProfileModal = false">Cancel</button>
+            <button type="submit" class="btn btn-gold px-4 rounded-pill shadow-md" :disabled="isSavingProfile">
+              <span v-if="isSavingProfile" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+              Save Changes
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== CHANGE PASSWORD MODAL ========== -->
+<div v-if="showChangePasswordModal" class="modal-backdrop fade show" style="z-index: 1050;" @click="showChangePasswordModal = false"></div>
+<div v-if="showChangePasswordModal" class="modal fade show d-block" tabindex="-1" style="z-index: 1055;" @click.self="showChangePasswordModal = false">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 rounded-4 overflow-hidden shadow-2xl">
+      <!-- Modal Header -->
+      <div class="modal-header bg-white border-bottom p-4 d-flex justify-content-between align-items-center">
+        <h3 class="modal-title serif-font text-secondary-dark mb-0 fs-4">Change Password</h3>
+        <button type="button" class="btn-close bg-light rounded-circle p-2" @click="showChangePasswordModal = false" aria-label="Close"></button>
+      </div>
+      <!-- Modal Body -->
+      <div class="modal-body bg-cream p-4">
+        <form @submit.prevent="submitPasswordChange">
+          <div class="mb-3">
+            <label class="form-label small text-muted text-uppercase tracking-wider fw-bold">Current Password</label>
+            <input type="password" v-model="passwordForm.current_password" class="form-control rounded-3" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small text-muted text-uppercase tracking-wider fw-bold">New Password</label>
+            <input type="password" v-model="passwordForm.password" class="form-control rounded-3" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small text-muted text-uppercase tracking-wider fw-bold">Confirm New Password</label>
+            <input type="password" v-model="passwordForm.password_confirmation" class="form-control rounded-3" required>
+          </div>
+          <div class="mt-4 d-flex gap-3 justify-content-end">
+            <button type="button" class="btn btn-secondary px-4 rounded-pill" @click="showChangePasswordModal = false">Cancel</button>
+            <button type="submit" class="btn btn-gold px-4 rounded-pill shadow-md" :disabled="isChangingPassword">
+              <span v-if="isChangingPassword" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+              Update Password
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, reactive } from 'vue';
 import { useAuth } from '../store/auth';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 
 const { state, fetchUser } = useAuth();
 const fileInput = ref(null);
+
+// Modal state variables
+const showEditProfileModal = ref(false);
+const showChangePasswordModal = ref(false);
+const isSavingProfile = ref(false);
+const isChangingPassword = ref(false);
+
+// Reactive form structures
+const profileForm = reactive({
+  first_name: '',
+  last_name: '',
+  phone: '',
+  address: '',
+  city: '',
+  zip_code: '',
+  birthdate: '',
+  gender: 'other'
+});
+
+const passwordForm = reactive({
+  current_password: '',
+  password: '',
+  password_confirmation: ''
+});
+
+// Modal Actions
+const openEditProfileModal = () => {
+  if (state.user) {
+    profileForm.first_name = state.user.first_name || '';
+    profileForm.last_name = state.user.last_name || '';
+    profileForm.phone = state.user.phone || '';
+    profileForm.address = state.user.address || '';
+    profileForm.city = state.user.city || '';
+    profileForm.zip_code = state.user.zip_code || '';
+    profileForm.birthdate = state.user.birthdate || '';
+    profileForm.gender = state.user.gender || 'other';
+  }
+  showEditProfileModal.value = true;
+};
+
+const openChangePasswordModal = () => {
+  passwordForm.current_password = '';
+  passwordForm.password = '';
+  passwordForm.password_confirmation = '';
+  showChangePasswordModal.value = true;
+};
+
+// Form Submissions
+const submitProfileUpdate = async () => {
+  isSavingProfile.value = true;
+  try {
+    const response = await axios.put('/api/user/profile', profileForm);
+    
+    // Refresh user state
+    await fetchUser();
+    
+    showEditProfileModal.value = false;
+    
+    Swal.fire({
+      icon: 'success',
+      title: 'Success!',
+      text: response.data.message || 'Profile updated successfully.',
+      timer: 2000,
+      showConfirmButton: false
+    });
+  } catch (error) {
+    console.error('Failed to update profile:', error);
+    Swal.fire({
+      icon: 'error',
+      title: 'Update Failed',
+      text: error.response?.data?.message || 'Something went wrong. Please check your inputs.',
+      confirmButtonColor: '#BC9151'
+    });
+  } finally {
+    isSavingProfile.value = false;
+  }
+};
+
+const submitPasswordChange = async () => {
+  // Validate confirm password matches
+  if (passwordForm.password !== passwordForm.password_confirmation) {
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: 'New password and password confirmation do not match.',
+      confirmButtonColor: '#BC9151'
+    });
+    return;
+  }
+
+  isChangingPassword.value = true;
+  try {
+    const response = await axios.put('/api/user/change-password', passwordForm);
+    
+    showChangePasswordModal.value = false;
+    
+    Swal.fire({
+      icon: 'success',
+      title: 'Success!',
+      text: response.data.message || 'Password changed successfully.',
+      timer: 2000,
+      showConfirmButton: false
+    });
+  } catch (error) {
+    console.error('Failed to change password:', error);
+    Swal.fire({
+      icon: 'error',
+      title: 'Password Change Failed',
+      text: error.response?.data?.message || 'Current password might be incorrect or new password doesn\'t meet complexity requirements.',
+      confirmButtonColor: '#BC9151'
+    });
+  } finally {
+    isChangingPassword.value = false;
+  }
+};
 
 const triggerFileInput = () => {
   fileInput.value.click();
@@ -246,5 +465,15 @@ const handleFileChange = async (event) => {
 }
 .object-fit-cover {
   object-fit: cover;
+}
+
+/* Modal styles overlay */
+.modal-backdrop.show {
+  opacity: 0.65;
+  background-color: #0f172a;
+  backdrop-filter: blur(4px);
+}
+.modal.show {
+  display: block;
 }
 </style>

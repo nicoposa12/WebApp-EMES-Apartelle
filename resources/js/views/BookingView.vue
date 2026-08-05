@@ -156,7 +156,18 @@ watch(() => booking.value.guests, (newGuests) => {
 
 // Watch for room change to update booked dates
 watch(() => booking.value.roomId, (newId) => {
-    if (newId) fetchBookedDates();
+    fetchBookedDates();
+    showAllAmenities.value = false; // Reset toggle on room change
+});
+
+const showAllAmenities = ref(false);
+
+const displayedAmenities = computed(() => {
+    if (!selectedRoom.value?.amenities) return [];
+    if (showAllAmenities.value) {
+        return selectedRoom.value.amenities;
+    }
+    return selectedRoom.value.amenities.slice(0, 6);
 });
 
 const showRoomModal = ref(false);
@@ -398,113 +409,143 @@ const formatToYMD = (date) => {
             <div class="row g-4 g-lg-5">
                 <!-- Main Form Area -->
                 <div class="col-lg-8">
-                    <!-- Step 1: Select Dates -->
+                    <!-- Step 1: Select Room and Dates -->
                     <div v-if="currentStep === 1" class="booking-section animate-fade-up delay-2">
                         <div class="card border-0 shadow-sm rounded-4 p-4 p-md-5 mb-4 booking-main-card">
-                            <h2 class="serif-font h3 mb-4 text-secondary-dark">Select Your Dates</h2>
-                            
+                            <h2 class="serif-font h3 mb-4 text-secondary-dark">Select Room</h2>
                             <div class="row g-4 mb-5">
-                                <!-- Check-in Calendar Box -->
-                                <div class="col-md-6">
-                                    <label class="form-label-custom mb-3">Check-in Date</label>
-                                    <div class="calendar-container">
-                                        <CalendarPicker 
-                                          v-model="booking.checkIn" 
-                                          :min-date="formatToYMD(new Date())" 
-                                          :disabled-dates="bookedDates"
-                                        />
-                                        <input type="date" class="form-control form-control-custom mt-3 border-0 bg-light text-center" v-model="booking.checkIn">
+                                <div class="col-12">
+                                    <label class="form-label-custom">Room Type</label>
+                                    <div class="input-group">
+                                        <select class="form-select form-control-custom py-3" v-model="booking.roomId" style="border-top-right-radius: 0; border-bottom-right-radius: 0;">
+                                            <option value="" disabled>Select a room</option>
+                                            <option v-for="room in rooms" :key="room.id" :value="room.id">
+                                                {{ room.room_type }} #{{ room.room_number }} - 
+                                                <template v-if="room.room_type === 'Family Room' || room.room_type === 'Barkadahan Room'">
+                                                    ₱{{ formatPrice(room.price_per_head) }}/head/night
+                                                </template>
+                                                <template v-else>
+                                                    ₱{{ formatPrice(room.price_per_night) }}/night
+                                                </template>
+                                            </option>
+                                        </select>
+                                        <button 
+                                            v-if="booking.roomId"
+                                            class="btn btn-outline-secondary px-3" 
+                                            type="button"
+                                            @click="booking.roomId = ''"
+                                            title="Clear Selection"
+                                            style="border-color: #eee; border-left: 0;"
+                                        >
+                                            <i class="bi bi-x-lg text-danger"></i> <span class="d-none d-sm-inline ms-1 small text-danger">Clear</span>
+                                        </button>
+                                        <button 
+                                            class="btn btn-outline-secondary px-3" 
+                                            type="button"
+                                            :disabled="!booking.roomId"
+                                            @click="openRoomModal"
+                                            title="View Room Details"
+                                            style="border-color: #eee; border-left: 0;"
+                                        >
+                                            <i class="bi bi-eye text-primary"></i> <span class="d-none d-sm-inline ms-1 small">View</span>
+                                        </button>
                                     </div>
-                                 </div>
-                                 <!-- Check-out Calendar Box -->
-                                 <div class="col-md-6">
-                                     <label class="form-label-custom mb-3">Check-out Date</label>
-                                     <div class="calendar-container">
-                                         <CalendarPicker 
-                                          v-model="booking.checkOut" 
-                                          :min-date="booking.checkIn || formatToYMD(new Date())" 
-                                          :max-date="maxCheckOutDate"
-                                          :disabled-dates="bookedDates"
-                                          :is-checkout="true"
-                                        />
-                                        <input type="date" class="form-control form-control-custom mt-3 border-0 bg-light text-center" v-model="booking.checkOut">
-                                    </div>
-                                 </div>
-                            </div>
+                                </div>
 
-                            <div class="select-room-section pt-4 border-top">
-                                <h2 class="serif-font h3 mb-4 text-secondary-dark">Select Room</h2>
-                                <div class="row g-4">
-                                    <div class="col-12">
-                                        <label class="form-label-custom">Room Type</label>
-                                        <div class="input-group">
-                                            <select class="form-select form-control-custom py-3" v-model="booking.roomId" style="border-top-right-radius: 0; border-bottom-right-radius: 0;">
-                                                <option value="" disabled>Select a room</option>
-                                                <option v-for="room in rooms" :key="room.id" :value="room.id">
-                                                    {{ room.room_type }} #{{ room.room_number }} - 
-                                                    <template v-if="room.room_type === 'Family Room' || room.room_type === 'Barkadahan Room'">
-                                                        ₱{{ formatPrice(room.price_per_head) }}/head/night
-                                                    </template>
-                                                    <template v-else>
-                                                        ₱{{ formatPrice(room.price_per_night) }}/night
-                                                    </template>
-                                                </option>
-                                            </select>
-                                            <button 
-                                                class="btn btn-outline-secondary px-3" 
-                                                type="button"
-                                                :disabled="!booking.roomId"
-                                                @click="openRoomModal"
-                                                title="View Room Details"
-                                                style="border-color: #eee; border-left: 0;"
-                                            >
-                                                <i class="bi bi-eye text-primary"></i> <span class="d-none d-sm-inline ms-1 small">View</span>
-                                            </button>
+                                <!-- Selected Room Details & Amenities Preview -->
+                                <div v-if="selectedRoom" class="col-12 mt-4 animate-fade-up">
+                                    <div class="card border border-light-subtle rounded-4 p-4 shadow-sm" style="background-color: var(--bg-light);">
+                                        <div class="row g-4 align-items-center">
+                                            <div class="col-md-5">
+                                                <div class="position-relative overflow-hidden rounded-3 shadow-sm" style="height: 180px;">
+                                                    <img :src="getRoomImage(selectedRoom)" class="w-100 h-100 object-fit-cover animate-fade-in" :alt="selectedRoom.room_type">
+                                                    <div class="position-absolute top-0 start-0 m-2">
+                                                        <span class="badge bg-gold text-white px-3 py-2 rounded-pill shadow-sm">
+                                                            Room #{{ selectedRoom.room_number }}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-7">
+                                                <span class="text-gold text-uppercase letter-spacing-wide small fw-bold mb-1 d-block">{{ selectedRoom.room_type }}</span>
+                                                <h4 class="serif-font mb-2 text-secondary-dark">Room #{{ selectedRoom.room_number }}</h4>
+                                                
+                                                <div class="d-flex align-items-center gap-3 mb-3 text-muted small">
+                                                     <span v-if="selectedRoom.room_size"><i class="bi bi-arrows-fullscreen text-gold me-1"></i> {{ selectedRoom.room_size }} m²</span>
+                                                     <span v-if="selectedRoom.bed_type"><i class="bi bi-hdd-stack text-gold me-1"></i> {{ selectedRoom.bed_type }}</span>
+                                                     <span><i class="bi bi-people text-gold me-1"></i> Max {{ selectedRoom.max_occupancy }} Guests</span>
+                                                </div>
+                                                
+                                                <p class="text-muted small mb-3 line-clamp-2" style="font-size: 0.85rem; line-height: 1.5;">{{ selectedRoom.description }}</p>
+                                                
+                                                <div v-if="selectedRoom.amenities && selectedRoom.amenities.length">
+                                                    <p class="small fw-bold text-uppercase text-muted mb-2" style="font-size: 0.75rem; letter-spacing: 0.5px;">Included Amenities</p>
+                                                    <div class="d-flex flex-wrap gap-2">
+                                                        <span v-for="amenity in displayedAmenities" :key="amenity.id" class="badge bg-white text-dark fw-normal py-2 px-3 rounded-pill border small">
+                                                            <i :class="['bi', amenity.icon, 'text-gold me-1']"></i> {{ amenity.name }}
+                                                        </span>
+                                                    </div>
+                                                    
+                                                    <button 
+                                                        v-if="selectedRoom.amenities.length > 6" 
+                                                        @click="showAllAmenities = !showAllAmenities" 
+                                                        class="btn btn-link text-gold p-0 mt-3 small fw-bold text-decoration-none d-inline-flex align-items-center gap-1 shadow-none"
+                                                        style="font-size: 0.75rem; border: none; background: transparent;"
+                                                    >
+                                                        <template v-if="showAllAmenities">
+                                                            <span>Hide amenities</span> <i class="bi bi-chevron-up"></i>
+                                                        </template>
+                                                        <template v-else>
+                                                            <span>View all amenities (+{{ selectedRoom.amenities.length - 6 }})</span> <i class="bi bi-chevron-down"></i>
+                                                        </template>
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
+                                </div>
 
-                                    <!-- Room Details Modal -->
-                                    <Teleport to="body">
-                                        <div v-if="showRoomModal" class="modal-backdrop fade show" style="z-index: 1050;"></div>
-                                        <div v-if="showRoomModal" class="modal fade show d-block" tabindex="-1" style="z-index: 1055;" @click.self="showRoomModal = false">
-                                            <div class="modal-dialog modal-dialog-centered modal-lg">
-                                                <div class="modal-content border-0 rounded-4 overflow-hidden shadow-lg">
-                                                    <div class="modal-header border-0 position-absolute end-0 top-0 z-2 p-3">
-                                                        <button type="button" class="btn-close bg-white opacity-75 shadow-sm rounded-circle p-2" @click="showRoomModal = false"></button>
-                                                    </div>
-                                                    <div class="modal-body p-0" v-if="selectedRoom">
-                                                        <div class="row g-0">
-                                                            <div class="col-md-6 bg-light" style="min-height: 300px;">
-                                                                <img :src="getRoomImage(selectedRoom)" class="w-100 h-100 object-fit-cover" :alt="selectedRoom.room_type">
+                                <!-- Room Details Modal -->
+                                <Teleport to="body">
+                                    <div v-if="showRoomModal" class="modal-backdrop fade show" style="z-index: 1050;"></div>
+                                    <div v-if="showRoomModal" class="modal fade show d-block" tabindex="-1" style="z-index: 1055;" @click.self="showRoomModal = false">
+                                        <div class="modal-dialog modal-dialog-centered modal-lg">
+                                            <div class="modal-content border-0 rounded-4 overflow-hidden shadow-lg">
+                                                <div class="modal-header border-0 position-absolute end-0 top-0 z-2 p-3">
+                                                    <button type="button" class="btn-close bg-white opacity-75 shadow-sm rounded-circle p-2" @click="showRoomModal = false"></button>
+                                                </div>
+                                                <div class="modal-body p-0" v-if="selectedRoom">
+                                                    <div class="row g-0">
+                                                        <div class="col-md-6 bg-light" style="min-height: 300px;">
+                                                            <img :src="getRoomImage(selectedRoom)" class="w-100 h-100 object-fit-cover" :alt="selectedRoom.room_type">
+                                                        </div>
+                                                        <div class="col-md-6 p-4 p-lg-5 d-flex flex-column">
+                                                            <span class="text-gold text-uppercase letter-spacing-wide small fw-bold mb-2">{{ selectedRoom.room_type }}</span>
+                                                            <h3 class="serif-font mb-3">Room #{{ selectedRoom.room_number }}</h3>
+                                                            
+                                                            <div class="d-flex align-items-center gap-3 mb-4 text-muted small">
+                                                                 <span v-if="selectedRoom.room_size"><i class="bi bi-arrows-fullscreen me-1"></i> {{ selectedRoom.room_size }} m²</span>
+                                                                 <span v-if="selectedRoom.bed_type"><i class="bi bi-hdd-stack me-1"></i> {{ selectedRoom.bed_type }}</span>
+                                                                 <span><i class="bi bi-people me-1"></i> Max {{ selectedRoom.max_occupancy }} Guests</span>
                                                             </div>
-                                                            <div class="col-md-6 p-4 p-lg-5 d-flex flex-column">
-                                                                <span class="text-gold text-uppercase letter-spacing-wide small fw-bold mb-2">{{ selectedRoom.room_type }}</span>
-                                                                <h3 class="serif-font mb-3">Room #{{ selectedRoom.room_number }}</h3>
-                                                                
-                                                                <div class="d-flex align-items-center gap-3 mb-4 text-muted small">
-                                                                     <span v-if="selectedRoom.room_size"><i class="bi bi-arrows-fullscreen me-1"></i> {{ selectedRoom.room_size }} m²</span>
-                                                                     <span v-if="selectedRoom.bed_type"><i class="bi bi-hdd-stack me-1"></i> {{ selectedRoom.bed_type }}</span>
-                                                                     <span><i class="bi bi-people me-1"></i> Max {{ selectedRoom.max_occupancy }} Guests</span>
-                                                                </div>
 
-                                                                <p class="text-muted mb-4 small flex-grow-1">{{ selectedRoom.description }}</p>
-                                                                
-                                                                <div class="mb-4" v-if="selectedRoom.amenities && selectedRoom.amenities.length">
-                                                                    <p class="small fw-bold text-uppercase text-muted mb-2">Amenities</p>
-                                                                    <div class="d-flex flex-wrap gap-2">
-                                                                        <span v-for="amenity in selectedRoom.amenities" :key="amenity.id" class="badge bg-light text-dark fw-normal py-2 px-3 rounded-pill border">
-                                                                            <i :class="['bi', amenity.icon, 'text-gold me-1']"></i> {{ amenity.name }}
-                                                                        </span>
-                                                                    </div>
+                                                            <p class="text-muted mb-4 small flex-grow-1">{{ selectedRoom.description }}</p>
+                                                            
+                                                            <div class="mb-4" v-if="selectedRoom.amenities && selectedRoom.amenities.length">
+                                                                <p class="small fw-bold text-uppercase text-muted mb-2">Amenities</p>
+                                                                <div class="d-flex flex-wrap gap-2">
+                                                                    <span v-for="amenity in selectedRoom.amenities" :key="amenity.id" class="badge bg-light text-dark fw-normal py-2 px-3 rounded-pill border">
+                                                                        <i :class="['bi', amenity.icon, 'text-gold me-1']"></i> {{ amenity.name }}
+                                                                    </span>
                                                                 </div>
+                                                            </div>
 
-                                                                <div class="pt-3 border-top mt-auto">
-                                                                    <div class="d-flex justify-content-between align-items-center">
-                                                                        <small class="text-muted text-uppercase fw-bold">
-                                                                            {{ (selectedRoom.room_type === 'Family Room' || selectedRoom.room_type === 'Barkadahan Room') ? 'Price per head / night' : 'Price per night' }}
-                                                                        </small>
-                                                                        <span class="h2 serif-font text-gold mb-0">₱{{ formatPrice((selectedRoom.room_type === 'Family Room' || selectedRoom.room_type === 'Barkadahan Room') ? selectedRoom.price_per_head : selectedRoom.price_per_night) }}</span>
-                                                                    </div>
+                                                            <div class="pt-3 border-top mt-auto">
+                                                                <div class="d-flex justify-content-between align-items-center">
+                                                                    <small class="text-muted text-uppercase fw-bold">
+                                                                        {{ (selectedRoom.room_type === 'Family Room' || selectedRoom.room_type === 'Barkadahan Room') ? 'Price per head / night' : 'Price per night' }}
+                                                                    </small>
+                                                                    <span class="h2 serif-font text-gold mb-0">₱{{ formatPrice((selectedRoom.room_type === 'Family Room' || selectedRoom.room_type === 'Barkadahan Room') ? selectedRoom.price_per_head : selectedRoom.price_per_night) }}</span>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -512,22 +553,55 @@ const formatToYMD = (date) => {
                                                 </div>
                                             </div>
                                         </div>
-                                    </Teleport>
-                                    <div class="col-12">
-                                        <label class="form-label-custom">Number of Guests</label>
-                                        <select class="form-select form-control-custom py-3" v-model="booking.guests">
-                                            <template v-if="selectedRoom">
-                                                <option v-for="n in selectedRoom.max_occupancy" :key="n" :value="n" :disabled="selectedRoom.min_occupancy && n < selectedRoom.min_occupancy">
-                                                    {{ n }} Guest{{ n > 1 ? 's' : '' }}
-                                                </option>
-                                            </template>
-                                            <template v-else>
-                                                <option v-for="n in 12" :key="n" :value="n">
-                                                    {{ n }} Guest{{ n > 1 ? 's' : '' }}
-                                                </option>
-                                            </template>
-                                        </select>
                                     </div>
+                                </Teleport>
+                                
+                                <div class="col-12">
+                                    <label class="form-label-custom">Number of Guests</label>
+                                    <select class="form-select form-control-custom py-3" v-model="booking.guests">
+                                        <template v-if="selectedRoom">
+                                            <option v-for="n in selectedRoom.max_occupancy" :key="n" :value="n" :disabled="selectedRoom.min_occupancy && n < selectedRoom.min_occupancy">
+                                                {{ n }} Guest{{ n > 1 ? 's' : '' }}
+                                            </option>
+                                        </template>
+                                        <template v-else>
+                                            <option v-for="n in 12" :key="n" :value="n">
+                                                {{ n }} Guest{{ n > 1 ? 's' : '' }}
+                                            </option>
+                                        </template>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="select-date-section pt-4 border-top">
+                                <h2 class="serif-font h3 mb-4 text-secondary-dark">Select Your Dates</h2>
+                                <div class="row g-4">
+                                    <!-- Check-in Calendar Box -->
+                                    <div class="col-md-6">
+                                        <label class="form-label-custom mb-3">Check-in Date</label>
+                                        <div class="calendar-container">
+                                            <CalendarPicker 
+                                              v-model="booking.checkIn" 
+                                              :min-date="formatToYMD(new Date())" 
+                                              :disabled-dates="bookedDates"
+                                            />
+                                            <input type="date" class="form-control form-control-custom mt-3 border-0 bg-light text-center" v-model="booking.checkIn">
+                                        </div>
+                                     </div>
+                                     <!-- Check-out Calendar Box -->
+                                     <div class="col-md-6">
+                                         <label class="form-label-custom mb-3">Check-out Date</label>
+                                         <div class="calendar-container">
+                                             <CalendarPicker 
+                                              v-model="booking.checkOut" 
+                                              :min-date="booking.checkIn || formatToYMD(new Date())" 
+                                              :max-date="maxCheckOutDate"
+                                              :disabled-dates="bookedDates"
+                                              :is-checkout="true"
+                                            />
+                                            <input type="date" class="form-control form-control-custom mt-3 border-0 bg-light text-center" v-model="booking.checkOut">
+                                        </div>
+                                     </div>
                                 </div>
                             </div>
 

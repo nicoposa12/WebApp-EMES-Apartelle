@@ -147,8 +147,14 @@
                 <div class="receipt-section mt-4 pt-3 border-top border-dashed">
                   <h6 class="section-title"><i class="bi bi-receipt me-1.5 text-gold"></i> Charges Details</h6>
                   <div class="price-row d-flex justify-content-between mb-2">
-                    <span class="price-label">Room Rate ({{ totalNights }} Nights)</span>
-                    <span class="price-val">₱{{ formatPrice(reservation.room?.price_per_night) }} / night</span>
+                    <template v-if="reservation.room?.room_type === 'Family Room' || reservation.room?.room_type === 'Barkadahan Room'">
+                      <span class="price-label">Room Rate ({{ totalNights }} Night{{ totalNights > 1 ? 's' : '' }} × {{ reservation.guests || 1 }} Guest{{ (reservation.guests || 1) > 1 ? 's' : '' }})</span>
+                      <span class="price-val">₱{{ formatPrice(reservation.room?.price_per_head) }} / head / night</span>
+                    </template>
+                    <template v-else>
+                      <span class="price-label">Room Rate ({{ totalNights }} Night{{ totalNights > 1 ? 's' : '' }})</span>
+                      <span class="price-val">₱{{ formatPrice(reservation.room?.price_per_night) }} / night</span>
+                    </template>
                   </div>
                   <div class="price-row d-flex justify-content-between mb-2">
                     <span class="price-label">Subtotal</span>

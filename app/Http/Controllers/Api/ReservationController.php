@@ -110,6 +110,19 @@ class ReservationController extends Controller
             return response()->json(['message' => 'Room is already reserved or pending confirmation for these dates.'], 422);
         }
 
+        // Check if selected dates are blocked (globally or for this specific room)
+        $isBlocked = \App\Models\BlockedDate::where(function ($query) use ($request) {
+                $query->where('room_id', $request->room_id)
+                      ->orWhereNull('room_id');
+            })
+            ->where('start_date', '<', $checkOut)
+            ->where('end_date', '>', $checkIn)
+            ->exists();
+
+        if ($isBlocked) {
+            return response()->json(['message' => 'The selected dates are unavailable due to a scheduled event or maintenance.'], 422);
+        }
+
         $room = Room::find($request->room_id);
         $days = $checkIn->diffInDays($checkOut);
         
@@ -308,8 +321,13 @@ class ReservationController extends Controller
         }
 
         $oldCheckout = $reservation->check_out;
+        $isGuest = $user && !in_array($user->role, ['admin', 'staff']);
+        $additionalAmount = 0;
+        if ($newTotalAmount !== null && $newTotalAmount > $reservation->total_amount) {
+            $additionalAmount = $newTotalAmount - $reservation->total_amount;
+        }
 
-        return DB::transaction(function () use ($request, $reservation, $newTotalAmount, $oldCheckout) {
+        return DB::transaction(function () use ($request, $reservation, $newTotalAmount, $oldCheckout, $additionalAmount, $isGuest) {
             $oldStatus = $reservation->status;
             $oldPaymentStatus = $reservation->payment_status;
             
@@ -317,9 +335,9 @@ class ReservationController extends Controller
             if ($newTotalAmount !== null) {
                 $updateData['total_amount'] = $newTotalAmount;
                 
-                // If extension increases price, reset payment status to unpaid for the additional nights
+                // If extension increases price, reset payment status to unpaid/partially_paid for the additional nights
                 if ($newTotalAmount > $reservation->total_amount) {
-                    $updateData['payment_status'] = 'unpaid';
+                    $updateData['payment_status'] = ($oldPaymentStatus === 'paid') ? 'partially_paid' : 'unpaid';
                 }
             }
 
@@ -445,7 +463,43 @@ class ReservationController extends Controller
                 }
             }
 
-            return response()->json($reservation);
+            $checkoutUrl = null;
+            if ($isGuest && $additionalAmount > 0) {
+                // Create Xendit invoice for extension
+                $checkoutData = [
+                    'reservation_id' => $reservation->id,
+                    'external_id' => $reservation->id . '-ext-' . time(), // Unique external ID
+                    'total_amount' => $additionalAmount,
+                    'room_type' => $reservation->room->room_type ?? 'Room',
+                    'room_number' => $reservation->room->room_number ?? '',
+                    'description' => 'Stay Extension: Room #' . ($reservation->room->room_number ?? '') . ' (' . ($reservation->room->room_type ?? '') . ')',
+                    'item_name' => 'Stay Extension for Room #' . ($reservation->room->room_number ?? ''),
+                    'customer_name' => $request->user()->name,
+                    'customer_email' => $request->user()->email,
+                    'customer_phone' => $request->user()->phone,
+                    'success_redirect_url' => env('APP_URL') . '/my-bookings',
+                ];
+
+                try {
+                    $checkoutResponse = $this->xenditService->createInvoice($checkoutData);
+
+                    if ($checkoutResponse['status'] === 'success' && isset($checkoutResponse['invoice_url'])) {
+                        // Store the new invoice ID
+                        $reservation->update(['xendit_invoice_id' => $checkoutResponse['id']]);
+                        $checkoutUrl = $checkoutResponse['invoice_url'];
+                    }
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error('Xendit Extension Invoice Creation Failed: ' . $e->getMessage());
+                }
+            }
+
+            // Return response with checkout_url if created
+            $responseData = $reservation->toArray();
+            if ($checkoutUrl) {
+                $responseData['checkout_url'] = $checkoutUrl;
+            }
+
+            return response()->json($responseData);
         });
     }
 
@@ -590,42 +644,78 @@ class ReservationController extends Controller
         $status = $invoice['status'] ?? 'PENDING';
         
         if ($status === 'PAID' || $status === 'SETTLED') {
-            $paymentStatus = ($reservation->payment_option === 'half') ? 'partially_paid' : 'paid';
-            $reservation->update([
-                'status' => 'confirmed',
-                'payment_status' => $paymentStatus,
-            ]);
-
-            // Check if payment already recorded
             $paymentId = $invoice['id'];
-            $exists = Payment::where('reservation_id', $reservation->id)
-                ->where(function($q) use ($paymentId) {
-                    $q->where('paymongo_payment_id', $paymentId)
-                      ->orWhere('paymongo_payment_id', 'LIKE', 'MANUAL-%');
-                })->first();
+            $externalId = $invoice['external_id'] ?? '';
+            $isExtension = str_contains($externalId, '-ext-');
 
-            if ($exists) {
-                // Update existing record if it was manual
-                if (str_starts_with($exists->paymongo_payment_id, 'MANUAL-')) {
-                    $exists->update([
+            // 1. Determine payment amount
+            $paidAmount = $invoice['paid_amount'] ?? $invoice['amount'] ?? 0;
+            if ($paidAmount == 0) {
+                $paidAmount = ($reservation->payment_option === 'half')
+                    ? ($reservation->downpayment_amount ?: ($reservation->total_amount / 2))
+                    : $reservation->total_amount;
+            }
+
+            // 2. Record the payment
+            // Check if payment already recorded
+            $exists = Payment::where('reservation_id', $reservation->id)
+                ->where('paymongo_payment_id', $paymentId)
+                ->first();
+
+            if (!$exists) {
+                // Check for MANUAL- payment only if NOT a stay extension
+                $manualPayment = null;
+                if (!$isExtension) {
+                    $manualPayment = Payment::where('reservation_id', $reservation->id)
+                        ->where('paymongo_payment_id', 'LIKE', 'MANUAL-%')
+                        ->where('status', 'Succeeded')
+                        ->first();
+                }
+
+                if ($manualPayment) {
+                    $manualPayment->update([
                         'paymongo_payment_id' => $paymentId,
+                        'amount' => $paidAmount,
                         'method' => $invoice['payment_channel'] ?? ($invoice['payment_method'] ?? 'Xendit'),
                     ]);
+                } else {
+                    Payment::create([
+                        'reservation_id' => $reservation->id,
+                        'paymongo_payment_id' => $paymentId,
+                        'amount' => $paidAmount,
+                        'method' => $invoice['payment_channel'] ?? ($invoice['payment_method'] ?? 'Xendit'),
+                        'status' => 'Succeeded',
+                    ]);
                 }
-            } else {
-                $paidAmount = $invoice['paid_amount'] ?? ($reservation->payment_option === 'half' ? $reservation->downpayment_amount : $reservation->total_amount);
-                Payment::create([
-                    'reservation_id' => $reservation->id,
-                    'paymongo_payment_id' => $paymentId,
-                    'amount' => $paidAmount,
-                    'method' => $invoice['payment_channel'] ?? ($invoice['payment_method'] ?? 'Xendit'),
-                    'status' => 'Succeeded',
-                ]);
             }
+
+            // 3. Recalculate payment status dynamically based on total paid amount
+            $totalPaid = Payment::where('reservation_id', $reservation->id)
+                ->where('status', 'Succeeded')
+                ->sum('amount');
+
+            if ($totalPaid >= $reservation->total_amount) {
+                $paymentStatus = 'paid';
+            } else if ($totalPaid > 0) {
+                $paymentStatus = 'partially_paid';
+            } else {
+                $paymentStatus = 'unpaid';
+            }
+
+            // 4. Update reservation status safely
+            $updateData = ['payment_status' => $paymentStatus];
+            
+            // Only transition status to confirmed if it is currently pending
+            if ($reservation->status === 'pending') {
+                $updateData['status'] = 'confirmed';
+            }
+
+            $reservation->update($updateData);
 
             return response()->json([
                 'message' => 'Payment synchronized and confirmed.',
-                'status' => 'confirmed'
+                'status' => $reservation->status,
+                'payment_status' => $paymentStatus
             ]);
         }
 

@@ -163,6 +163,133 @@ class AdminController extends Controller
 
             $totalReservations = Reservation::count();
 
+            // FINANCIAL TIME FRAMES
+            $weeklyRev = collect(range(7, 0))->map(function ($weeksAgo) {
+                $start = Carbon::now()->subWeeks($weeksAgo)->startOfWeek();
+                $end = $start->copy()->endOfWeek();
+                $rev = Payment::where('status', 'Succeeded')
+                    ->whereBetween('created_at', [$start, $end])
+                    ->sum('amount');
+                return [
+                    'month' => $start->format('M d'), // use same key for chart mapping
+                    'revenue' => (float) $rev
+                ];
+            })->values()->toArray();
+
+            $yearlyRevData = Payment::where('status', 'Succeeded')
+                ->get()
+                ->groupBy(function ($payment) {
+                    return $payment->created_at->format('Y');
+                })
+                ->map(function ($group) {
+                    return $group->sum('amount');
+                });
+            
+            $firstYear = $firstPayment ? (int) $firstPayment->created_at->format('Y') : (int) date('Y');
+            $currentYear = (int) date('Y');
+            $yearlyRev = collect(range($firstYear, $currentYear))->map(function ($year) use ($yearlyRevData) {
+                return [
+                    'month' => (string) $year,
+                    'revenue' => (float) ($yearlyRevData->get($year) ?? 0)
+                ];
+            })->values()->toArray();
+
+            // STATUS TIME FRAMES
+            $weeklyStatus = Reservation::where('created_at', '>=', Carbon::now()->subDays(7))
+                ->select('status', \Illuminate\Support\Facades\DB::raw('count(*) as count'))
+                ->groupBy('status')
+                ->get()
+                ->map(function ($r) {
+                    return ['status' => $r->status, 'count' => (int) $r->count];
+                })->toArray();
+
+            $monthlyStatus = Reservation::where('created_at', '>=', Carbon::now()->subDays(30))
+                ->select('status', \Illuminate\Support\Facades\DB::raw('count(*) as count'))
+                ->groupBy('status')
+                ->get()
+                ->map(function ($r) {
+                    return ['status' => $r->status, 'count' => (int) $r->count];
+                })->toArray();
+
+            $yearlyStatus = Reservation::where('created_at', '>=', Carbon::now()->subDays(365))
+                ->select('status', \Illuminate\Support\Facades\DB::raw('count(*) as count'))
+                ->groupBy('status')
+                ->get()
+                ->map(function ($r) {
+                    return ['status' => $r->status, 'count' => (int) $r->count];
+                })->toArray();
+
+            // TRENDS TIME FRAMES
+            $weeklyTrends = collect(range(6, 0))->map(function ($daysAgo) {
+                $date = Carbon::now()->subDays($daysAgo)->format('Y-m-d');
+                $count = Reservation::whereDate('created_at', $date)->count();
+                return [
+                    'date' => Carbon::parse($date)->format('D M d'),
+                    'count' => $count
+                ];
+            })->values()->toArray();
+
+            $monthlyTrends = collect(range(29, 0))->map(function ($daysAgo) {
+                $date = Carbon::now()->subDays($daysAgo)->format('Y-m-d');
+                $count = Reservation::whereDate('created_at', $date)->count();
+                return [
+                    'date' => Carbon::parse($date)->format('M d'),
+                    'count' => $count
+                ];
+            })->values()->toArray();
+
+            $yearlyTrends = collect(range(11, 0))->map(function ($monthsAgo) {
+                $monthStart = Carbon::now()->subMonths($monthsAgo)->startOfMonth();
+                $count = Reservation::whereBetween('created_at', [$monthStart, $monthStart->copy()->endOfMonth()])->count();
+                return [
+                    'date' => $monthStart->format('M Y'),
+                    'count' => $count
+                ];
+            })->values()->toArray();
+
+            // ROOM TIME FRAMES
+            $weeklyRoom = Reservation::join('rooms', 'reservations.room_id', '=', 'rooms.id')
+                ->select('rooms.room_type', \Illuminate\Support\Facades\DB::raw('count(*) as count'), \Illuminate\Support\Facades\DB::raw('sum(total_amount) as total_revenue'))
+                ->where('reservations.status', '!=', 'cancelled')
+                ->where('reservations.created_at', '>=', Carbon::now()->subDays(7))
+                ->groupBy('rooms.room_type')
+                ->get()
+                ->map(function ($r) {
+                    return [
+                        'room_type' => $r->room_type,
+                        'count' => (int) $r->count,
+                        'total_revenue' => (float) $r->total_revenue
+                    ];
+                })->toArray();
+
+            $monthlyRoom = Reservation::join('rooms', 'reservations.room_id', '=', 'rooms.id')
+                ->select('rooms.room_type', \Illuminate\Support\Facades\DB::raw('count(*) as count'), \Illuminate\Support\Facades\DB::raw('sum(total_amount) as total_revenue'))
+                ->where('reservations.status', '!=', 'cancelled')
+                ->where('reservations.created_at', '>=', Carbon::now()->subDays(30))
+                ->groupBy('rooms.room_type')
+                ->get()
+                ->map(function ($r) {
+                    return [
+                        'room_type' => $r->room_type,
+                        'count' => (int) $r->count,
+                        'total_revenue' => (float) $r->total_revenue
+                    ];
+                })->toArray();
+
+            $yearlyRoom = Reservation::join('rooms', 'reservations.room_id', '=', 'rooms.id')
+                ->select('rooms.room_type', \Illuminate\Support\Facades\DB::raw('count(*) as count'), \Illuminate\Support\Facades\DB::raw('sum(total_amount) as total_revenue'))
+                ->where('reservations.status', '!=', 'cancelled')
+                ->where('reservations.created_at', '>=', Carbon::now()->subDays(365))
+                ->groupBy('rooms.room_type')
+                ->get()
+                ->map(function ($r) {
+                    return [
+                        'room_type' => $r->room_type,
+                        'count' => (int) $r->count,
+                        'total_revenue' => (float) $r->total_revenue
+                    ];
+                })->toArray();
+
             return [
                 'monthly_revenue' => $monthlyRevenueResult,
                 'status_distribution' => $statusDistribution,
@@ -173,6 +300,28 @@ class AdminController extends Controller
                     'total_bookings' => $totalReservations,
                     'avg_booking_value' => (float) Reservation::avg('total_amount'),
                     'cancellation_rate' => $totalReservations > 0 ? (Reservation::where('status', 'cancelled')->count() / $totalReservations) * 100 : 0
+                ],
+                'timeframes' => [
+                    'financial_performance' => [
+                        'weekly' => $weeklyRev,
+                        'monthly' => $monthlyRevenueResult,
+                        'yearly' => $yearlyRev
+                    ],
+                    'booking_status' => [
+                        'weekly' => $weeklyStatus,
+                        'monthly' => $monthlyStatus,
+                        'yearly' => $yearlyStatus
+                    ],
+                    'booking_trends' => [
+                        'weekly' => $weeklyTrends,
+                        'monthly' => $monthlyTrends,
+                        'yearly' => $yearlyTrends
+                    ],
+                    'room_performance' => [
+                        'weekly' => $weeklyRoom,
+                        'monthly' => $monthlyRoom,
+                        'yearly' => $yearlyRoom
+                    ]
                 ]
             ];
         });

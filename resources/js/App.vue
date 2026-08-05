@@ -1,148 +1,154 @@
 <template>
   <div class="app-container">
-    <!-- Navigation Bar -->
-    <nav 
+    <!-- Header Wrapper (Sticky/Fixed) -->
+    <header 
       v-if="!isAdminRoute && !isAuthRoute" 
-      class="navbar navbar-expand-lg fixed-top transition-all"
-      :class="{ 'navbar-scrolled shadow-sm': isScrolled, 'navbar-transparent': !isScrolled }"
+      class="fixed-top transition-all"
     >
-      <div class="container">
-        <!-- Logo -->
-        <router-link class="navbar-brand d-flex align-items-center gap-3" to="/">
-          <div class="brand-logo-wrapper p-1 rounded-3 bg-white shadow-sm">
-             <img src="/images/emes-logo.png" alt="EME's Apartelle" class="brand-logo" width="42" height="42">
+      <!-- Suspension Banner -->
+      <div v-if="state.isAuthenticated && state.user?.is_suspended" 
+           class="suspension-banner bg-danger p-3 text-white animate-fade-in shadow-lg"
+      >
+        <div class="container d-flex align-items-center justify-content-center gap-3">
+          <i class="bi bi-exclamation-octagon fs-4"></i>
+          <div class="text-start">
+            <p class="mb-0 fw-bold small text-uppercase tracking-wider">Account Suspended</p>
+            <p class="mb-0 x-small opacity-90">Reason: {{ state.user.suspension_reason || 'Violation of house rules.' }} | Please contact support for assistance.</p>
           </div>
-          <div class="d-flex flex-column lh-1">
-            <span class="brand-name" :class="isScrolled ? 'text-dark' : 'text-white text-shadow-sm'">EME's</span>
-            <span class="brand-tagline" :class="isScrolled ? 'text-muted' : 'text-white-50'">Apartelle</span>
-          </div>
-        </router-link>
-        
-        <button 
-          class="navbar-toggler border-0 shadow-none" 
-          type="button" 
-          data-bs-toggle="collapse" 
-          data-bs-target="#navbarNav"
-          :class="isScrolled ? 'text-dark' : 'text-white navbar-dark'"
-        >
-          <span class="navbar-toggler-icon"></span>
-        </button>
-        
-        <div class="collapse navbar-collapse" id="navbarNav">
-          <ul class="navbar-nav mx-auto mb-2 mb-lg-0 gap-lg-4">
-            <li class="nav-item" v-for="link in navLinks" :key="link.path">
-              <router-link 
-                class="nav-link nav-link-custom text-uppercase tracking-wider small fw-bold" 
-                :class="[isScrolled ? 'text-dark' : 'text-white opacity-90', { 'active': $route.path === link.path }]" 
-                :to="link.path"
-              >
-                {{ link.name }}
-              </router-link>
-            </li>
-          </ul>
+        </div>
+      </div>
+
+      <!-- Navigation Bar -->
+      <nav 
+        class="navbar navbar-expand-lg transition-all"
+        :class="{ 'navbar-scrolled shadow-sm': isNavbarScrolled, 'navbar-transparent': !isNavbarScrolled }"
+      >
+        <div class="container">
+          <!-- Logo -->
+          <router-link class="navbar-brand d-flex align-items-center gap-3" to="/">
+            <div class="brand-logo-wrapper p-1 rounded-3 bg-white shadow-sm">
+               <img src="/images/emes-logo.png" alt="EME's Apartelle" class="brand-logo" width="42" height="42">
+            </div>
+            <div class="d-flex flex-column lh-1">
+              <span class="brand-name" :class="isNavbarScrolled ? 'text-dark' : 'text-white text-shadow-sm'">EME's</span>
+              <span class="brand-tagline" :class="isNavbarScrolled ? 'text-muted' : 'text-white-50'">Apartelle</span>
+            </div>
+          </router-link>
           
-          <div class="d-flex align-items-center gap-3">
-            <template v-if="!state.isAuthenticated">
-              <router-link to="/login" class="nav-admin-link fw-bold small text-uppercase" :class="isScrolled ? 'text-dark' : 'text-white'">
-                Sign In
-              </router-link>
-              <router-link to="/register" class="btn btn-outline-gold d-flex align-items-center gap-2 rounded-pill px-4 small fw-bold text-uppercase">
-                Join Now
-              </router-link>
-            </template>
-            <template v-else>
-              <!-- Notifications Dropdown -->
-              <div class="dropdown me-2">
-                <button class="btn border-0 position-relative p-2 shadow-none" type="button" data-bs-toggle="dropdown" aria-expanded="false" :class="isScrolled ? 'text-dark' : 'text-white'">
-                  <i class="bi bi-bell fs-5"></i>
-                  <span v-if="unreadCount > 0" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger shadow-sm" style="font-size: 0.6rem; padding: 0.25em 0.5em;">
-                    {{ unreadCount > 9 ? '9+' : unreadCount }}
-                  </span>
-                </button>
-                <div class="dropdown-menu dropdown-menu-end shadow-xl border-0 mt-3 p-0 rounded-4 animate-fade-up overflow-hidden" style="width: 320px; max-height: 450px;">
-                  <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-light-subtle">
-                    <h6 class="mb-0 fw-bold serif-font">Notifications</h6>
-                    <button v-if="unreadCount > 0" @click.stop="markAllNotificationsAsRead" class="btn btn-link p-0 text-gold x-small fw-bold text-decoration-none">
-                      Mark all as read
-                    </button>
-                  </div>
-                  <div class="notification-list custom-scrollbar" style="max-height: 350px; overflow-y: auto;">
-                    <div v-if="notifications.length === 0" class="p-5 text-center text-muted">
-                      <i class="bi bi-bell-slash fs-2 d-block mb-2 opacity-25"></i>
-                      <p class="small mb-0">No notifications yet</p>
+          <button 
+            class="navbar-toggler border-0 shadow-none" 
+            type="button" 
+            data-bs-toggle="collapse" 
+            data-bs-target="#navbarNav"
+            :class="isNavbarScrolled ? 'text-dark' : 'text-white navbar-dark'"
+          >
+            <span class="navbar-toggler-icon"></span>
+          </button>
+          
+          <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav mx-auto mb-2 mb-lg-0 gap-lg-4">
+              <li class="nav-item" v-for="link in navLinks" :key="link.path">
+                <router-link 
+                  class="nav-link nav-link-custom text-uppercase tracking-wider small fw-bold" 
+                  :class="[isNavbarScrolled ? 'text-dark' : 'text-white opacity-90', { 'active': $route.path === link.path }]" 
+                  :to="link.path"
+                >
+                  {{ link.name }}
+                </router-link>
+              </li>
+            </ul>
+            
+            <div class="d-flex align-items-center gap-3">
+              <template v-if="!state.isAuthenticated">
+                <router-link to="/login" class="nav-admin-link fw-bold small text-uppercase" :class="isNavbarScrolled ? 'text-dark' : 'text-white'">
+                  Sign In
+                </router-link>
+                <router-link to="/register" class="btn btn-outline-gold d-flex align-items-center gap-2 rounded-pill px-4 small fw-bold text-uppercase">
+                  Join Now
+                </router-link>
+              </template>
+              <template v-else>
+                <!-- Notifications Dropdown -->
+                <div class="dropdown me-2">
+                  <button class="btn border-0 position-relative p-2 shadow-none" type="button" data-bs-toggle="dropdown" aria-expanded="false" :class="isNavbarScrolled ? 'text-dark' : 'text-white'">
+                    <i class="bi bi-bell fs-5"></i>
+                    <span v-if="unreadCount > 0" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger shadow-sm" style="font-size: 0.6rem; padding: 0.25em 0.5em;">
+                      {{ unreadCount > 9 ? '9+' : unreadCount }}
+                    </span>
+                  </button>
+                  <div class="dropdown-menu dropdown-menu-end shadow-xl border-0 mt-3 p-0 rounded-4 animate-fade-up overflow-hidden" style="width: 320px; max-height: 450px;">
+                    <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-light-subtle">
+                      <h6 class="mb-0 fw-bold serif-font">Notifications</h6>
+                      <button v-if="unreadCount > 0" @click.stop="markAllNotificationsAsRead" class="btn btn-link p-0 text-gold x-small fw-bold text-decoration-none">
+                        Mark all as read
+                      </button>
                     </div>
-                    <template v-else>
-                      <div v-for="notif in notifications" :key="notif.id" 
-                           class="notification-item p-3 border-bottom transition-all cursor-pointer" 
-                           :class="{ 'unread bg-gold-light-5': !notif.read_at }"
-                           @click="handleNotificationClick(notif)">
-                        <div class="d-flex gap-3">
-                          <div class="notif-icon-circle rounded-circle flex-shrink-0 d-flex align-items-center justify-content-center" 
-                               :class="[getNotificationColorClass(notif), { 'opacity-75': notif.read_at }]"
-                               style="width: 36px; height: 36px;">
-                            <i :class="notif.data.icon || 'bi bi-info-circle'"></i>
-                          </div>
-                          <div class="flex-grow-1 overflow-hidden">
-                            <p class="mb-1 small fw-bold text-dark text-truncate">{{ notif.data.title }}</p>
-                            <p class="mb-1 x-small text-muted line-clamp-2">{{ notif.data.message }}</p>
-                            <span class="x-small text-muted opacity-75">{{ formatNotifTime(notif.created_at) }}</span>
+                    <div class="notification-list custom-scrollbar" style="max-height: 350px; overflow-y: auto;">
+                      <div v-if="notifications.length === 0" class="p-5 text-center text-muted">
+                        <i class="bi bi-bell-slash fs-2 d-block mb-2 opacity-25"></i>
+                        <p class="small mb-0">No notifications yet</p>
+                      </div>
+                      <template v-else>
+                        <div v-for="notif in notifications" :key="notif.id" 
+                             class="notification-item p-3 border-bottom transition-all cursor-pointer" 
+                             :class="{ 'unread bg-gold-light-5': !notif.read_at, 'read': !!notif.read_at }"
+                             @click="handleNotificationClick(notif)">
+                          <div class="d-flex gap-3">
+                            <div class="notif-icon-circle rounded-circle flex-shrink-0 d-flex align-items-center justify-content-center" 
+                                 :class="[getNotificationColorClass(notif), { 'opacity-75': notif.read_at }]"
+                                 style="width: 36px; height: 36px;">
+                              <i :class="notif.data.icon || 'bi bi-info-circle'"></i>
+                            </div>
+                            <div class="flex-grow-1 overflow-hidden">
+                              <p class="mb-1 small fw-bold text-dark text-truncate">{{ notif.data.title }}</p>
+                              <p class="mb-1 x-small text-muted line-clamp-2">{{ notif.data.message }}</p>
+                              <span class="x-small text-muted opacity-75">{{ formatNotifTime(notif.created_at) }}</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </template>
-                  </div>
-                  <div class="p-2 border-top bg-light-subtle text-center">
-                    <router-link to="/notifications" class="x-small text-gold fw-bold text-decoration-none">View All Notifications</router-link>
+                      </template>
+                    </div>
+                    <div class="p-2 border-top bg-light-subtle text-center">
+                      <router-link to="/notifications" class="x-small text-gold fw-bold text-decoration-none">View All Notifications</router-link>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div class="dropdown">
-                <button class="nav-admin-link btn border-0 d-flex align-items-center gap-2 dropdown-toggle shadow-none" type="button" data-bs-toggle="dropdown" :class="isScrolled ? 'text-dark' : 'text-white'">
-                  <div class="avatar-circle bg-gold text-white d-flex align-items-center justify-content-center rounded-circle overflow-hidden position-relative" style="width: 32px; height: 32px; font-size: 0.8rem;">
-                    <img 
-                      v-if="state.user?.profile_photo_url" 
-                      :src="state.user.profile_photo_url" 
-                      class="w-100 h-100 object-fit-cover position-absolute top-0 start-0"
-                      alt="Avatar"
-                    >
-                    <span v-else>{{ state.user?.first_name?.charAt(0) || 'U' }}</span>
-                  </div>
-                  <span class="d-none d-sm-inline small fw-bold text-uppercase">{{ state.user?.first_name || 'My Account' }}</span>
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 mt-3 p-2 rounded-4 animate-fade-up">
-                  <li><h6 class="dropdown-header small text-uppercase tracking-wider text-muted py-2">Account</h6></li>
-                  <li><router-link class="dropdown-item rounded-3 py-2 small fw-bold" to="/profile"><i class="bi bi-person me-2 text-gold"></i> My Profile</router-link></li>
-                  <li><router-link class="dropdown-item rounded-3 py-2 small fw-bold" to="/my-bookings"><i class="bi bi-calendar-event me-2 text-gold"></i> My Bookings</router-link></li>
-                  <li v-if="state.user?.role === 'admin' || state.user?.role === 'staff'"><hr class="dropdown-divider bg-light my-2"></li>
-                  <li v-if="state.user?.role === 'admin' || state.user?.role === 'staff'"><router-link class="dropdown-item rounded-3 py-2 small fw-bold text-primary" to="/admin"><i class="bi bi-speedometer2 me-2"></i> {{ state.user?.role === 'admin' ? 'Admin Panel' : 'Staff Panel' }}</router-link></li>
-                  <li><hr class="dropdown-divider bg-light my-2"></li>
-                  <li><button @click="handleLogout" class="dropdown-item rounded-3 py-2 small fw-bold text-danger"><i class="bi bi-box-arrow-right me-2"></i> Sign Out</button></li>
-                </ul>
-              </div>
-            </template>
-            <router-link to="/book-now" class="btn btn-gold d-flex align-items-center gap-2 ms-lg-2 rounded-pill px-4 small fw-bold text-uppercase shadow-gold">
-              <i class="bi bi-calendar-check text-white"></i> <span class="d-none d-md-inline">Reserve</span>
-            </router-link>
+                <div class="dropdown">
+                  <button class="nav-admin-link btn border-0 d-flex align-items-center gap-2 dropdown-toggle shadow-none" type="button" data-bs-toggle="dropdown" :class="isNavbarScrolled ? 'text-dark' : 'text-white'">
+                    <div class="avatar-circle bg-gold text-white d-flex align-items-center justify-content-center rounded-circle overflow-hidden position-relative" style="width: 32px; height: 32px; font-size: 0.8rem;">
+                      <img 
+                        v-if="state.user?.profile_photo_url" 
+                        :src="state.user.profile_photo_url" 
+                        class="w-100 h-100 object-fit-cover position-absolute top-0 start-0"
+                        alt="Avatar"
+                      >
+                      <span v-else>{{ state.user?.first_name?.charAt(0) || 'U' }}</span>
+                    </div>
+                    <span class="d-none d-sm-inline small fw-bold text-uppercase">{{ state.user?.first_name || 'My Account' }}</span>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 mt-3 p-2 rounded-4 animate-fade-up">
+                    <li><h6 class="dropdown-header small text-uppercase tracking-wider text-muted py-2">Account</h6></li>
+                    <li><router-link class="dropdown-item rounded-3 py-2 small fw-bold" to="/profile"><i class="bi bi-person me-2 text-gold"></i> My Profile</router-link></li>
+                    <li><router-link class="dropdown-item rounded-3 py-2 small fw-bold" to="/my-bookings"><i class="bi bi-calendar-event me-2 text-gold"></i> My Bookings</router-link></li>
+                    <li v-if="state.user?.role === 'admin' || state.user?.role === 'staff'"><hr class="dropdown-divider bg-light my-2"></li>
+                    <li v-if="state.user?.role === 'admin' || state.user?.role === 'staff'"><router-link class="dropdown-item rounded-3 py-2 small fw-bold text-primary" to="/admin"><i class="bi bi-speedometer2 me-2"></i> {{ state.user?.role === 'admin' ? 'Admin Panel' : 'Staff Panel' }}</router-link></li>
+                    <li><hr class="dropdown-divider bg-light my-2"></li>
+                    <li><button @click="handleLogout" class="dropdown-item rounded-3 py-2 small fw-bold text-danger"><i class="bi bi-box-arrow-right me-2"></i> Sign Out</button></li>
+                  </ul>
+                </div>
+              </template>
+              <router-link to="/book-now" class="btn btn-gold d-flex align-items-center gap-2 ms-lg-2 rounded-pill px-4 small fw-bold text-uppercase shadow-gold">
+                <i class="bi bi-calendar-check text-white"></i> <span class="d-none d-md-inline">Reserve</span>
+              </router-link>
+            </div>
           </div>
         </div>
-      </div>
-    </nav>
-
-    <!-- Suspension Banner -->
-    <div v-if="state.isAuthenticated && state.user?.is_suspended && !isAuthRoute && !isAdminRoute" 
-         class="suspension-banner bg-danger p-3 text-white animate-fade-in shadow-lg">
-      <div class="container d-flex align-items-center justify-content-center gap-3">
-        <i class="bi bi-exclamation-octagon fs-4"></i>
-        <div class="text-start">
-          <p class="mb-0 fw-bold small text-uppercase tracking-wider">Account Suspended</p>
-          <p class="mb-0 x-small opacity-90">Reason: {{ state.user.suspension_reason || 'Violation of house rules.' }} | Please contact support for assistance.</p>
-        </div>
-      </div>
-    </div>
+      </nav>
+    </header>
 
     <!-- Main Content -->
-    <main :style="{ marginTop: (state.isAuthenticated && state.user?.is_suspended && !isAuthRoute && !isAdminRoute) ? '0' : '0' }">
+    <main :style="{ marginTop: (state.isAuthenticated && state.user?.is_suspended && !isAuthRoute && !isAdminRoute) ? '68px' : '0px' }">
       <router-view v-slot="{ Component }">
         <transition name="fade" mode="out-in">
           <component :is="Component" />
@@ -265,6 +271,9 @@ const { state, logout, fetchUser } = useAuth();
 const isAdminRoute = computed(() => route.path.startsWith('/admin'));
 const isAuthRoute = computed(() => ['/login', '/register'].includes(route.path));
 const isScrolled = ref(false);
+const isNavbarScrolled = computed(() => {
+  return isScrolled.value || (state.isAuthenticated && state.user?.is_suspended);
+});
 const notifications = ref([]);
 const unreadCount = ref(0);
 const lastSeenNotificationId = ref(null);
@@ -324,7 +333,12 @@ const fetchNotifications = async () => {
         const newHash = response.data.unread_count + '_' + (newNotifications[0]?.id || 'none');
         if (newHash !== lastNotifHash.value) {
             lastNotifHash.value = newHash;
-            await fetchUser();
+            try {
+                await fetchUser();
+            } catch (e) {
+                // Silently ignore — fetchUser() already handles 401 internally.
+                // Don't let a transient error crash the notification poll.
+            }
         }
     } catch (err) {
         console.error('Failed to fetch notifications/user status', err);
@@ -353,7 +367,7 @@ const handleNotificationClick = async (notif) => {
     }
     
     if (notif.data.action_url) {
-        fetchUser(); // Refresh state just in case it was a restoration notification
+        fetchUser().catch(() => {}); // Refresh state just in case it was a restoration notification
         router.push(notif.data.action_url);
     }
 };
@@ -639,8 +653,18 @@ main {
   background-color: rgba(188, 145, 81, 0.05);
 }
 
+.notification-item.read {
+  background-color: #f8fafc;
+  opacity: 0.75;
+}
+
 .notification-item:hover {
   background-color: rgba(0, 0, 0, 0.02);
+}
+
+.notification-item.read:hover {
+  background-color: #f1f5f9;
+  opacity: 0.9;
 }
 
 .line-clamp-2 {
@@ -653,9 +677,8 @@ main {
 
 /* Suspension Banner Styles */
 .suspension-banner {
-  position: sticky;
-  top: 0;
-  z-index: 1060; /* Higher than navbar when scrolling starts */
+  position: relative;
+  z-index: 1060;
   margin-top: 0;
 }
 

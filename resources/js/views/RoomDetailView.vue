@@ -17,6 +17,7 @@ const bookingLoading = ref(false);
 const error = ref(null);
 const activeImage = ref(-1); // Track active image, -1 is for Main Photo
 const systemSettings = ref({ online_booking: true, maintenance_mode: false });
+const blockedDates = ref([]);
 
 // Parse guests from query string (e.g. "1 Adult" -> 1)
 const parseGuests = (guestsStr) => {
@@ -58,22 +59,22 @@ const totalNights = computed(() => {
 });
 
 const maxCheckOutDate = computed(() => {
-  if (!booking.check_in || !room.value || !room.value.reservations) return null;
+  if (!booking.check_in || !blockedDates.value.length) return null;
   const checkInDate = new Date(booking.check_in);
   checkInDate.setHours(0, 0, 0, 0);
 
-  let firstNextReservation = null;
-  room.value.reservations.forEach(res => {
-    const resStart = new Date(res.check_in);
-    resStart.setHours(0, 0, 0, 0);
-    if (resStart >= checkInDate) {
-      if (!firstNextReservation || resStart < new Date(firstNextReservation.check_in)) {
-        firstNextReservation = res;
+  let firstNextDate = null;
+  blockedDates.value.forEach(range => {
+    const start = new Date(range.check_in);
+    start.setHours(0, 0, 0, 0);
+    if (start >= checkInDate) {
+      if (!firstNextDate || start < new Date(firstNextDate)) {
+        firstNextDate = range.check_in;
       }
     }
   });
 
-  return firstNextReservation ? firstNextReservation.check_in.split(' ')[0] : null;
+  return firstNextDate ? firstNextDate.split(' ')[0] : null;
 });
 
 watch(() => booking.check_in, (newCheckIn) => {
@@ -97,12 +98,14 @@ const subtotal = computed(() => {
 const fetchRoom = async () => {
   try {
     loading.value = true;
-    const [roomRes, settingsRes] = await Promise.all([
+    const [roomRes, settingsRes, bookedDatesRes] = await Promise.all([
       axios.get(`/api/rooms/${route.params.id}`),
-      axios.get('/api/settings/public')
+      axios.get('/api/settings/public'),
+      axios.get(`/api/rooms/${route.params.id}/booked-dates`)
     ]);
     room.value = roomRes.data;
     systemSettings.value = settingsRes.data;
+    blockedDates.value = bookedDatesRes.data;
     
     // Auto adjust booking guests to min_occupancy if it is less than the minimum
     if (room.value && room.value.min_occupancy && booking.guests < room.value.min_occupancy) {
@@ -115,6 +118,16 @@ const fetchRoom = async () => {
     loading.value = false;
   }
 };
+
+const showAllAmenities = ref(false);
+
+const displayedAmenities = computed(() => {
+  if (!room.value?.amenities) return [];
+  if (showAllAmenities.value) {
+    return room.value.amenities;
+  }
+  return room.value.amenities.slice(0, 6);
+});
 
 const formatPrice = (price) => {
   return parseFloat(price || 0).toLocaleString();
@@ -482,15 +495,31 @@ onMounted(() => {
           <!-- Amenities (Real from DB) -->
           <div class="room-section mb-4">
             <h4 class="section-title serif-font fw-bold mb-4 text-secondary-dark">Amenities Included</h4>
-            <div v-if="room.amenities && room.amenities.length > 0" class="amenities-grid-modern">
-              <div v-for="amenity in room.amenities" :key="amenity.id" class="amenity-card-detail p-3 rounded-4 bg-white shadow-sm d-flex align-items-center gap-3 transition-all">
-                <div class="amenity-icon-box-detail rounded-circle shadow-sm d-flex align-items-center justify-content-center flex-shrink-0" style="width: 40px; height: 40px; background-color: var(--primary-gold); color: white;">
-                  <i :class="amenity.icon.startsWith('bi-') ? ['bi', amenity.icon] : ['bi', `bi-${amenity.icon}`]"></i>
-                </div>
-                <div>
-                  <h6 class="mb-0 fw-bold text-dark small">{{ amenity.name }}</h6>
+            <div v-if="room.amenities && room.amenities.length > 0">
+              <div class="amenities-grid-modern">
+                <div v-for="amenity in displayedAmenities" :key="amenity.id" class="amenity-card-detail p-3 rounded-4 bg-white shadow-sm d-flex align-items-center gap-3 transition-all">
+                  <div class="amenity-icon-box-detail rounded-circle shadow-sm d-flex align-items-center justify-content-center flex-shrink-0" style="width: 40px; height: 40px; background-color: var(--primary-gold); color: white;">
+                    <i :class="amenity.icon.startsWith('bi-') ? ['bi', amenity.icon] : ['bi', `bi-${amenity.icon}`]"></i>
+                  </div>
+                  <div>
+                    <h6 class="mb-0 fw-bold text-dark small">{{ amenity.name }}</h6>
+                  </div>
                 </div>
               </div>
+              
+              <button 
+                v-if="room.amenities.length > 6" 
+                @click="showAllAmenities = !showAllAmenities" 
+                class="btn btn-link text-gold p-0 mt-4 small fw-bold text-decoration-none d-inline-flex align-items-center gap-1 shadow-none"
+                style="font-size: 0.8rem; border: none; background: transparent;"
+              >
+                <template v-if="showAllAmenities">
+                  <span>Hide amenities</span> <i class="bi bi-chevron-up"></i>
+                </template>
+                <template v-else>
+                  <span>View all amenities (+{{ room.amenities.length - 6 }})</span> <i class="bi bi-chevron-down"></i>
+                </template>
+              </button>
             </div>
             <div v-else class="p-5 bg-white-glass rounded-4 text-center border border-dashed border-gold">
                <i class="bi bi-stars fs-1 text-gold opacity-50 mb-2 d-block"></i>
@@ -659,7 +688,7 @@ onMounted(() => {
                                 <CalendarPicker 
                                   v-model="booking.check_in" 
                                   :min-date="todayDate" 
-                                  :disabled-dates="room.reservations || []"
+                                  :disabled-dates="blockedDates"
                                   @update:modelValue="showCheckInCalendar = false"
                                 />
                               </div>
@@ -679,7 +708,7 @@ onMounted(() => {
                                   v-model="booking.check_out" 
                                   :min-date="booking.check_in || todayDate" 
                                   :max-date="maxCheckOutDate"
-                                  :disabled-dates="room.reservations || []"
+                                  :disabled-dates="blockedDates"
                                   :is-checkout="true"
                                   @update:modelValue="showCheckOutCalendar = false"
                                 />
@@ -772,20 +801,25 @@ onMounted(() => {
                   </form>
 
                   <!-- Booked Dates Section -->
-                  <div v-if="room.reservations && room.reservations.length > 0" class="booked-dates-section mt-4 animate-fade-up">
+                  <div v-if="blockedDates && blockedDates.length > 0" class="booked-dates-section mt-4 animate-fade-up">
                     <div class="d-flex align-items-center gap-2 mb-3">
                       <div class="p-1 bg-danger-subtle rounded-circle">
                          <i class="bi bi-calendar-x text-danger small"></i>
                       </div>
-                      <h6 class="mb-0 fw-bold text-dark small text-uppercase tracking-wider">Booked Dates</h6>
+                      <h6 class="mb-0 fw-bold text-dark small text-uppercase tracking-wider">Unavailable Dates</h6>
                     </div>
                     <div class="booked-dates-list p-3 rounded-4 bg-light border">
-                      <div v-for="res in room.reservations" :key="res.id" class="booked-date-item d-flex justify-content-between align-items-center mb-2 last-mb-0">
+                      <div v-for="(res, idx) in blockedDates" :key="idx" class="booked-date-item d-flex justify-content-between align-items-center mb-2 last-mb-0">
                         <div class="d-flex align-items-center gap-2">
-                           <span class="dot-indicator bg-danger"></span>
+                           <span class="dot-indicator" :class="res.type === 'blocked' ? 'bg-warning' : 'bg-danger'"></span>
                            <span class="small fw-semibold text-muted">{{ formatDateRange(res.check_in, res.check_out) }}</span>
                         </div>
-                        <span class="badge rounded-pill bg-white text-danger border border-danger-subtle x-small fw-bold text-uppercase px-2 py-1">Booked</span>
+                        <span 
+                          class="badge rounded-pill bg-white x-small fw-bold text-uppercase px-2 py-1 border"
+                          :class="res.type === 'blocked' ? 'text-warning border-warning' : 'text-danger border-danger-subtle'"
+                        >
+                          {{ res.type === 'blocked' ? 'Blocked' : 'Booked' }}
+                        </span>
                       </div>
                     </div>
                     <p class="x-small text-muted mt-2 text-center"><i class="bi bi-info-circle me-1"></i> These dates are currently unavailable for booking.</p>

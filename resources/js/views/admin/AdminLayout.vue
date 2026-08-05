@@ -72,7 +72,7 @@
         <div class="header-right d-flex align-items-center gap-4">
           <!-- Notification Bell -->
           <div class="dropdown">
-            <button class="btn btn-icon position-relative shadow-none" type="button" data-bs-toggle="dropdown" aria-expanded="false" @click="markNotificationsAsRead">
+            <button class="btn btn-icon position-relative shadow-none" type="button" data-bs-toggle="dropdown" aria-expanded="false">
               <i class="bi bi-bell fs-5 text-secondary-dark"></i>
               <span v-if="unreadNotificationCount > 0" 
                     class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-2 border-white shadow-sm animate-pulse-slow" 
@@ -101,7 +101,7 @@
                 <li v-for="notification in notifications" :key="notification.id" class="notif-wrapper">
                   <div @click="handleNotificationClick(notification)" 
                        class="notif-item p-3 d-flex align-items-start gap-3 cursor-pointer transition-all position-relative" 
-                       :class="{ 'unread': !notification.read_at }">
+                       :class="{ 'unread': !notification.read_at, 'read': !!notification.read_at }">
                     <div class="notif-icon-box rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 shadow-sm" 
                          :class="[getNotificationColorClass(notification), { 'opacity-75': notification.read_at }]">
                       <i :class="notification.data.icon || 'bi-bell'" style="font-size: 1.1rem;"></i>
@@ -643,11 +643,21 @@ const handleLogout = async () => {
 }
 
 .notif-item.unread {
-    background: rgba(188, 145, 81, 0.02);
+    background: rgba(188, 145, 81, 0.05);
+}
+
+.notif-item.read {
+    background: #f8fafc;
+    opacity: 0.75;
 }
 
 .notif-item:hover {
     background: #f8fafc;
+}
+
+.notif-item.read:hover {
+    background: #f1f5f9;
+    opacity: 0.9;
 }
 
 .notif-icon-box {

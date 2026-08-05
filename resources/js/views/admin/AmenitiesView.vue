@@ -19,28 +19,41 @@
 
     <!-- Stats Row -->
     <div class="row g-4 mb-5">
-      <div class="col-md-3">
-        <div class="stats-card">
-          <div class="d-flex align-items-center gap-3">
-            <div class="stats-icon bg-gold-subtle text-gold">
-              <i class="bi bi-stars"></i>
-            </div>
+      <div class="col-md-4 animate-fade-up">
+        <div class="stats-card-premium bg-white">
+          <div class="d-flex align-items-center justify-content-between">
             <div>
-              <h4 class="mb-0 fw-bold">{{ amenities.length }}</h4>
-              <p class="text-muted small mb-0">Total Features</p>
+              <span class="text-muted small fw-bold text-uppercase tracking-wider mb-2 d-block">Total Features</span>
+              <h3 class="mb-0 fw-bold text-secondary-dark serif-font">{{ amenities.length }}</h3>
+            </div>
+            <div class="stats-icon-premium bg-gold-subtle text-gold">
+              <i class="bi bi-stars"></i>
             </div>
           </div>
         </div>
       </div>
-      <div class="col-md-3">
-        <div class="stats-card">
-          <div class="d-flex align-items-center gap-3">
-            <div class="stats-icon bg-success-subtle text-success">
+      <div class="col-md-4 animate-fade-up" style="animation-delay: 0.1s;">
+        <div class="stats-card-premium bg-white">
+          <div class="d-flex align-items-center justify-content-between">
+            <div>
+              <span class="text-muted small fw-bold text-uppercase tracking-wider mb-2 d-block">Active Features</span>
+              <h3 class="mb-0 fw-bold text-secondary-dark serif-font">{{ activeAmenitiesCount }}</h3>
+            </div>
+            <div class="stats-icon-premium bg-success-subtle text-success">
               <i class="bi bi-check-circle"></i>
             </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4 animate-fade-up" style="animation-delay: 0.2s;">
+        <div class="stats-card-premium bg-white">
+          <div class="d-flex align-items-center justify-content-between">
             <div>
-              <h4 class="mb-0 fw-bold">{{ activeAmenitiesCount }}</h4>
-              <p class="text-muted small mb-0">Active Features</p>
+              <span class="text-muted small fw-bold text-uppercase tracking-wider mb-2 d-block">Inactive Features</span>
+              <h3 class="mb-0 fw-bold text-secondary-dark serif-font">{{ amenities.length - activeAmenitiesCount }}</h3>
+            </div>
+            <div class="stats-icon-premium bg-secondary-subtle text-secondary">
+              <i class="bi bi-slash-circle"></i>
             </div>
           </div>
         </div>
@@ -265,16 +278,19 @@ const formatIconClass = (icon) => {
 };
 
 const commonIcons = [
-  'wifi', 'snow', 'tv', 'thermometer-half', 'water', 'shield-check', 'clock-history', 'door-open', 'cup-hot', 'egg-fried',
-  'wind', 'p-circle', 'bicycle', 'car-front', 'bag-heart', 'box-seam', 'camera-video', 'display', 'fan', 'fire',
+  // Hotel-specific and Room Amenity Icons from the image
+  'wifi', 'water', 'droplet-half', 'droplet', 'brush', 'shield-lock', 'layers', 'wind', 'fan', 'outlet',
+  'plug', 'fire', 'table', 'fork-knife', 'door-open', 'window-desktop', 'layout', 'grid-3x3', 'trash', 'door-closed-fill',
+  'suitcase', 'snow', 'tv', 'thermometer-half', 'shield-check', 'clock-history', 'cup-hot', 'egg-fried',
+  'p-circle', 'bicycle', 'car-front', 'bag-heart', 'box-seam', 'camera-video', 'display',
   'gift', 'house-heart', 'key', 'laptop', 'lightbulb', 'mic', 'music-note', 'phone', 'reception-4', 'router',
   'safe', 'signpost-split', 'speaker', 'telephone', 'tools', 'umbrella', 'wallet2', 'zoom-in', 'stars', 'lightning-charge',
   'gem', 'briefcase', 'building', 'calendar-check', 'chat-dots', 'credit-card', 'envelope', 'gear', 'grid', 'heart',
-  'info-circle', 'link-45deg', 'list', 'map', 'person', 'search', 'trash', 'alarm', 'arrow-right-circle', 'bell',
+  'info-circle', 'link-45deg', 'list', 'map', 'person', 'search', 'alarm', 'arrow-right-circle', 'bell',
   'bookmark-star', 'brightness-high', 'camera', 'cart-check', 'check2-all', 'cloud-check', 'collection', 'command', 'compass', 'cpu',
   'database', 'egg', 'eye', 'file-earmark-text', 'flag', 'folder', 'grid-3x3-gap', 'headset', 'image', 'inbox', 'infinity',
-  'joystick', 'kanban', 'layers', 'magic', 'megaphone', 'minecart', 'modem', 'moon-stars', 'mouse2', 'node-plus', 'outlet',
-  'palette', 'paint-bucket', 'peace', 'pencil', 'pills', 'plug', 'printer', 'puzzle', 'qr-code', 'quote', 'rainbow',
+  'joystick', 'kanban', 'magic', 'megaphone', 'minecart', 'modem', 'moon-stars', 'mouse2', 'node-plus',
+  'palette', 'paint-bucket', 'peace', 'pencil', 'pills', 'printer', 'puzzle', 'qr-code', 'quote', 'rainbow',
   'receipt', 'record-circle', 'scissors', 'sort-alpha-down', 'speedometer', 'spellcheck', 'stack', 'stickies', 'stopwatch', 'suit-spade',
   'tag', 'terminal', 'ticket-perforated', 'translate', 'trophy', 'type-bold', 'vector-pen', 'view-list', 'voicemail', 'watch',
   'webcam', 'window', 'wrench', 'xbox', 'youtube', 'archive', 'arrow-bar-up', 'balloon', 'bank', 'bookshelf', 'box'
@@ -398,21 +414,52 @@ onMounted(fetchAmenities);
 </script>
 
 <style scoped>
-.stats-card {
+.stats-card-premium {
   background: white;
-  padding: 1.5rem;
-  border-radius: 1.25rem;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+  padding: 1.75rem;
+  border-radius: 1.5rem;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 10px 30px -5px rgba(0,0,0,0.02), 0 5px 15px -3px rgba(0,0,0,0.01);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
 }
 
-.stats-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+.stats-card-premium:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 40px -5px rgba(188, 145, 81, 0.1), 0 10px 20px -3px rgba(188, 145, 81, 0.05);
+  border-color: rgba(188, 145, 81, 0.3);
+}
+
+.stats-card-premium::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: #BC9151;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.stats-card-premium:hover::before {
+  opacity: 1;
+}
+
+.stats-icon-premium {
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
+  font-size: 1.6rem;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.stats-card-premium:hover .stats-icon-premium {
+  transform: scale(1.1) rotate(5deg);
 }
 
 .amenity-icon-box {

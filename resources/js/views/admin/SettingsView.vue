@@ -34,11 +34,11 @@
             <div class="row g-2">
               <div class="col-6 mb-3">
                 <label class="form-label small fw-bold text-muted text-uppercase">Latitude</label>
-                <input type="text" class="form-control bg-light border-0 px-3 py-2" v-model="settings.hotel_latitude" placeholder="9.2458">
+                <input type="text" class="form-control bg-light border-0 px-3 py-2" v-model="settings.hotel_latitude" placeholder="9.7811">
               </div>
               <div class="col-6 mb-3">
                 <label class="form-label small fw-bold text-muted text-uppercase">Longitude</label>
-                <input type="text" class="form-control bg-light border-0 px-3 py-2" v-model="settings.hotel_longitude" placeholder="123.2954">
+                <input type="text" class="form-control bg-light border-0 px-3 py-2" v-model="settings.hotel_longitude" placeholder="126.1512">
               </div>
             </div>
             <div class="mb-3">

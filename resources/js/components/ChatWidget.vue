@@ -138,7 +138,7 @@
                   <div v-if="!isOwnMessage(msg) && msg.quick_replies && msg.quick_replies.length > 0" class="mt-2 d-flex flex-wrap gap-2">
                      <button v-for="reply in msg.quick_replies" :key="reply" 
                              @click="handleQuickReply(reply)"
-                             class="btn btn-sm btn-outline-gold rounded-pill bg-white px-3 py-1 shadow-sm transition-all hover-translate-y"
+                             class="btn btn-sm btn-outline-gold rounded-pill px-3 py-1 shadow-sm transition-all hover-translate-y"
                              style="font-size: 0.75rem; border-width: 1px;">
                         {{ reply }}
                      </button>

@@ -31,7 +31,7 @@
           <div v-else class="d-flex flex-column gap-4">
             <div v-for="notif in notifications" :key="notif.id" 
                  class="notif-card p-0 border-0 shadow-premium rounded-4 overflow-hidden transition-all hover-lift position-relative"
-                 :class="{ 'unread': !notif.read_at, 'cursor-pointer': notif.data.action_url }"
+                 :class="{ 'unread': !notif.read_at, 'read': !!notif.read_at, 'cursor-pointer': notif.data.action_url }"
                  @click="notif.data.action_url ? handleAction(notif) : null">
               <div class="card-body p-4">
                 <div class="d-flex gap-4">
@@ -192,7 +192,17 @@ onMounted(fetchNotifications);
 }
 
 .notif-card.unread {
-    background: rgba(188, 145, 81, 0.02);
+    background: rgba(188, 145, 81, 0.05);
+}
+
+.notif-card.read {
+    background: #f8fafc;
+    opacity: 0.75;
+}
+
+.notif-card.read:hover {
+    background: #f1f5f9;
+    opacity: 0.9;
 }
 
 .unread-indicator-bar {

@@ -1,4 +1,5 @@
 <template>
+  <div>
   <div class="my-bookings-page py-5">
     <div class="container">
     <div class="row justify-content-center">
@@ -246,13 +247,122 @@
     </div>
   </div>
 </div>
+
+    <!-- ========== EXTEND STAY MODAL ========== -->
+    <Teleport to="body">
+      <div v-if="showExtendModal" class="modal-backdrop fade show" style="z-index: 1050;" @click="showExtendModal = false"></div>
+      <div v-if="showExtendModal" class="modal fade show d-block" tabindex="-1" style="z-index: 1055;" @click.self="showExtendModal = false">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+          <div class="modal-content border-0 rounded-5 overflow-hidden shadow-2xl">
+            <!-- Modal Header -->
+            <div class="modal-header bg-white border-bottom p-4 d-flex justify-content-between align-items-center">
+              <div>
+                <h3 class="modal-title serif-font text-secondary-dark mb-1">Extend Your Stay</h3>
+                <p class="text-muted small mb-0">
+                  <i class="bi bi-door-open text-gold"></i> Room #{{ extendingBooking?.room?.room_number }}
+                </p>
+              </div>
+              <button type="button" class="btn-close bg-light rounded-circle p-2" @click="showExtendModal = false" aria-label="Close"></button>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="modal-body bg-cream p-4">
+              <div v-if="loadingBookedDates" class="text-center py-5">
+                <span class="spinner-border text-gold me-2"></span>
+                <span class="text-muted">Loading room schedule...</span>
+              </div>
+              
+              <div v-else class="row g-4">
+                <!-- Calendar Section -->
+                <div class="col-md-6 d-flex flex-column align-items-center">
+                  <label class="form-label small fw-bold text-muted text-uppercase mb-3 align-self-start">Select New Checkout Date</label>
+                  <CalendarPicker 
+                    v-model="newCheckOut" 
+                    :min-date="minExtendCheckout" 
+                    :max-date="maxExtendCheckout"
+                    :disabled-dates="extendingBookedDates"
+                    :is-checkout="true"
+                    class="w-100"
+                  />
+                </div>
+                
+                <!-- Details & Cost Section -->
+                <div class="col-md-6 d-flex flex-column justify-content-between">
+                  <div>
+                    <h5 class="serif-font fw-bold text-secondary-dark mb-3">Extension Details</h5>
+                    
+                    <!-- Current Dates -->
+                    <div class="mb-3 bg-white p-3 rounded-4 border shadow-sm">
+                      <div class="d-flex justify-content-between mb-2">
+                        <span class="small text-muted fw-semibold">Current Checkout:</span>
+                        <span class="small fw-bold text-dark">{{ formatDate(extendingBooking?.check_out) }}</span>
+                      </div>
+                      <div class="d-flex justify-content-between">
+                        <span class="small text-muted fw-semibold">New Checkout:</span>
+                        <span class="small fw-bold text-gold">{{ formatDate(newCheckOut) || 'Select date' }}</span>
+                      </div>
+                    </div>
+                    
+                    <!-- Rate Summary -->
+                    <div class="alert alert-info border-0 shadow-sm d-flex align-items-start gap-2 rounded-4 py-3 px-3 mb-3">
+                      <i class="bi bi-info-circle-fill text-info fs-5 mt-0.5"></i>
+                      <span class="small text-muted leading-relaxed" style="font-size: 0.75rem;">
+                        Additional nights charged at <strong>₱{{ formatPrice((extendingBooking?.room?.room_type === 'Family Room' || extendingBooking?.room?.room_type === 'Barkadahan Room') ? extendingBooking?.room?.price_per_head : extendingBooking?.room?.price_per_night) }}</strong> 
+                        {{ (extendingBooking?.room?.room_type === 'Family Room' || extendingBooking?.room?.room_type === 'Barkadahan Room') ? 'per head per night' : 'per night' }}.
+                      </span>
+                    </div>
+
+                    <!-- Live cost calculation -->
+                    <div v-if="additionalNights > 0" class="bg-white p-3 rounded-4 border shadow-sm">
+                      <div class="d-flex justify-content-between mb-2">
+                        <span class="small text-muted fw-semibold">Additional Nights:</span>
+                        <span class="small fw-bold text-dark">{{ additionalNights }} {{ additionalNights === 1 ? 'night' : 'nights' }}</span>
+                      </div>
+                      <div class="d-flex justify-content-between mb-2">
+                        <span class="small text-muted fw-semibold">Extension Cost:</span>
+                        <span class="small fw-bold text-dark">₱{{ formatPrice(additionalCost) }}</span>
+                      </div>
+                      <hr class="my-2">
+                      <div class="d-flex justify-content-between align-items-center">
+                        <span class="small fw-bold text-secondary-dark">New Total Booking Amount:</span>
+                        <span class="h5 serif-font text-gold fw-bold mb-0">₱{{ formatPrice(newTotalAmount) }}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="mt-4 pt-3 border-top d-flex gap-3">
+                    <button type="button" class="btn btn-secondary px-4 py-2 rounded-pill flex-grow-1 small text-uppercase fw-bold" @click="showExtendModal = false">Cancel</button>
+                    <button 
+                      type="button" 
+                      class="btn btn-gold px-4 py-2 rounded-pill flex-grow-2 w-100 small text-uppercase fw-bold text-white border-0 shadow-sm"
+                      :disabled="submittingExtension || additionalNights <= 0"
+                      @click="submitExtension"
+                    >
+                      <span v-if="submittingExtension" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                      Submit Extension
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Modal Footer -->
+            <div class="modal-footer bg-white border-top p-3 d-flex justify-content-center">
+              <span class="x-small text-muted"><i class="bi bi-clock-history text-gold me-1"></i> Extension requests are updated in real-time</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+  </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { useAuth } from '../store/auth';
+import CalendarPicker from '../components/CalendarPicker.vue';
 
 const { state } = useAuth();
 
@@ -260,6 +370,66 @@ const bookings = ref([]);
 const disputes = ref([]);
 const loading = ref(true);
 const cancelling = ref(null);
+
+// Extend Stay Modal State
+const showExtendModal = ref(false);
+const extendingBooking = ref(null);
+const newCheckOut = ref('');
+const extendingBookedDates = ref([]);
+const loadingBookedDates = ref(false);
+const submittingExtension = ref(false);
+
+const minExtendCheckout = computed(() => {
+    if (!extendingBooking.value) return '';
+    const currentCheckout = extendingBooking.value.check_out;
+    return (currentCheckout || '').split(' ')[0] || (currentCheckout || '').split('T')[0];
+});
+
+const maxExtendCheckout = computed(() => {
+    if (!extendingBooking.value || !extendingBookedDates.value.length) return null;
+    const currentCheckoutDate = new Date(minExtendCheckout.value);
+    currentCheckoutDate.setHours(0, 0, 0, 0);
+
+    let firstNextDate = null;
+    extendingBookedDates.value.forEach(range => {
+        const start = new Date(range.check_in || range.start);
+        start.setHours(0, 0, 0, 0);
+        if (start >= currentCheckoutDate) {
+            if (!firstNextDate || start < new Date(firstNextDate)) {
+                firstNextDate = range.check_in || range.start;
+            }
+        }
+    });
+
+    return firstNextDate ? firstNextDate.split(' ')[0] : null;
+});
+
+const additionalNights = computed(() => {
+    if (!extendingBooking.value || !newCheckOut.value) return 0;
+    const start = new Date(minExtendCheckout.value);
+    const end = new Date(newCheckOut.value);
+    const diff = end - start;
+    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+});
+
+const additionalCost = computed(() => {
+    if (!extendingBooking.value || additionalNights.value <= 0) return 0;
+    const room = extendingBooking.value.room;
+    if (!room) return 0;
+    
+    const isPerHead = room.room_type === 'Family Room' || room.room_type === 'Barkadahan Room';
+    const nightlyRate = isPerHead ? (room.price_per_head || 0) : (room.price_per_night || 0);
+    
+    if (isPerHead) {
+        return nightlyRate * (extendingBooking.value.guests || 1) * additionalNights.value;
+    }
+    return nightlyRate * additionalNights.value;
+});
+
+const newTotalAmount = computed(() => {
+    if (!extendingBooking.value) return 0;
+    return parseFloat(extendingBooking.value.total_amount || 0) + additionalCost.value;
+});
 
 const fetchBookings = async () => {
     loading.value = true;
@@ -471,66 +641,65 @@ const isExtendable = (booking) => {
 };
 
 const handleExtendStay = async (booking) => {
-    const minCheckoutStr = (booking.check_out || '').split(' ')[0] || (booking.check_out || '').split('T')[0];
-    
-    // We get the next day as the default new checkout date
-    const nextDay = new Date(minCheckoutStr);
-    nextDay.setDate(nextDay.getDate() + 1);
-    const defaultNewCheckout = nextDay.toISOString().split('T')[0];
+    extendingBooking.value = booking;
+    newCheckOut.value = '';
+    extendingBookedDates.value = [];
+    loadingBookedDates.value = true;
+    showExtendModal.value = true;
 
-    const { value: newCheckoutDate } = await Swal.fire({
-        title: 'Extend Your Stay',
-        html: `
-            <div class="text-start">
-                <p class="small text-muted mb-3">You can extend your stay in Room #${booking.room?.room_number}. Enter your new checkout date below:</p>
-                <div class="mb-3">
-                    <label class="form-label small fw-bold text-muted">Current Checkout</label>
-                    <input type="text" class="form-control bg-light border-0 py-2.5 small" value="${formatDate(booking.check_out)}" readonly>
-                </div>
-                <div class="mb-3">
-                    <label for="swal-input-checkout" class="form-label small fw-bold text-muted">New Checkout Date</label>
-                    <input id="swal-input-checkout" type="date" class="form-control py-2.5" min="${minCheckoutStr}" value="${defaultNewCheckout}">
-                </div>
-                <div class="alert alert-info border-0 shadow-sm d-flex align-items-center gap-2 rounded-3 py-2 px-3 mb-0">
-                    <i class="bi bi-info-circle-fill text-info fs-6"></i>
-                    <span class="x-small text-muted">Additional nights will be charged at <strong>₱${formatPrice((booking.room?.room_type === 'Family Room' || booking.room?.room_type === 'Barkadahan Room') ? booking.room?.price_per_head : booking.room?.price_per_night)}</strong> ${(booking.room?.room_type === 'Family Room' || booking.room?.room_type === 'Barkadahan Room') ? 'per head per night' : 'per night'}.</span>
-                </div>
-            </div>
-        `,
-        focusConfirm: false,
-        showCancelButton: true,
-        confirmButtonColor: '#BC9151',
-        cancelButtonColor: '#718096',
-        confirmButtonText: 'Submit Extension',
-        preConfirm: () => {
-            const checkoutInput = document.getElementById('swal-input-checkout').value;
-            if (!checkoutInput) {
-                Swal.showValidationMessage('Please select a new checkout date.');
-                return false;
-            }
-            if (checkoutInput <= minCheckoutStr) {
-                Swal.showValidationMessage('New checkout date must be after your current checkout date.');
-                return false;
-            }
-            return checkoutInput;
+    try {
+        const response = await axios.get(`/api/rooms/${booking.room.id}/booked-dates`);
+        extendingBookedDates.value = response.data;
+        
+        // Pre-fill next day after current checkout as default new checkout
+        const minCheckoutStr = (booking.check_out || '').split(' ')[0] || (booking.check_out || '').split('T')[0];
+        const nextDay = new Date(minCheckoutStr);
+        nextDay.setDate(nextDay.getDate() + 1);
+        const defaultDate = nextDay.toISOString().split('T')[0];
+        
+        // Only default if it doesn't exceed next booking start date
+        if (!maxExtendCheckout.value || defaultDate <= maxExtendCheckout.value) {
+            newCheckOut.value = defaultDate;
+        } else if (maxExtendCheckout.value) {
+            newCheckOut.value = maxExtendCheckout.value;
         }
-    });
+    } catch (error) {
+        console.error('Failed to fetch booked dates:', error);
+    } finally {
+        loadingBookedDates.value = false;
+    }
+};
 
-    if (newCheckoutDate) {
-        loading.value = true;
-        try {
-            // Append standard check-out time "T12:00" to the selected date
-            const checkOutWithTime = `${newCheckoutDate}T12:00`;
-            const response = await axios.put(`/api/reservations/${booking.id}`, {
-                check_out: checkOutWithTime
+const submitExtension = async () => {
+    if (!newCheckOut.value || additionalNights.value <= 0) return;
+    
+    submittingExtension.value = true;
+    try {
+        const checkOutWithTime = `${newCheckOut.value}T12:00`;
+        const response = await axios.put(`/api/reservations/${extendingBooking.value.id}`, {
+            check_out: checkOutWithTime
+        });
+
+        showExtendModal.value = false;
+
+        if (response.data.checkout_url) {
+            // Redirect to Xendit for payment
+            await Swal.fire({
+                icon: 'info',
+                title: 'Redirecting to Payment',
+                text: 'Please complete the payment for your stay extension.',
+                timer: 2000,
+                timerProgressBar: true,
+                showConfirmButton: false
             });
-
+            window.location.href = response.data.checkout_url;
+        } else {
             await Swal.fire({
                 icon: 'success',
                 title: 'Stay Extended!',
                 html: `
                     <div class="small text-muted">
-                        Your stay in Room #${booking.room?.room_number} has been extended.<br>
+                        Your stay in Room #${extendingBooking.value.room?.room_number} has been extended.<br>
                         New Checkout: <strong>${formatDate(response.data.check_out)}</strong>.<br>
                         Total Amount: <strong>₱${formatPrice(response.data.total_amount)}</strong>.<br><br>
                         <span class="text-danger fw-bold">Please settle the additional amount at the hotel upon checkout.</span>
@@ -538,18 +707,17 @@ const handleExtendStay = async (booking) => {
                 `,
                 confirmButtonColor: '#BC9151'
             });
-
             await fetchBookings();
-        } catch (error) {
-            console.error('Error extending stay:', error);
-            Swal.fire({
-                icon: 'error',
-                title: 'Extension Failed',
-                text: error.response?.data?.message || 'Could not extend stay. The room might be booked by another guest for those dates.'
-            });
-        } finally {
-            loading.value = false;
         }
+    } catch (error) {
+        console.error('Error extending stay:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Extension Failed',
+            text: error.response?.data?.message || 'Could not extend stay. The room might be booked by another guest for those dates.'
+        });
+    } finally {
+        submittingExtension.value = false;
     }
 };
 
@@ -964,7 +1132,40 @@ const handleFileDispute = async (booking) => {
     }
 };
 
-onMounted(fetchBookings);
+/**
+ * Auto-sync payment status for reservations that are partially_paid but have a Xendit invoice.
+ * This handles cases where the Xendit webhook doesn't fire (e.g. localhost).
+ * Called silently in background after page load.
+ */
+const autoSyncPendingPayments = async (reservationList) => {
+    const toSync = reservationList.filter(b =>
+        b.xendit_invoice_id &&
+        b.payment_status === 'partially_paid' &&
+        ['pending', 'confirmed', 'checked-in'].includes(b.status)
+    );
+    if (!toSync.length) return;
+
+    await Promise.all(toSync.map(b =>
+        axios.post(`/api/reservations/${b.id}/sync-payment`)
+            .then(res => {
+                // Update the local booking state without a full page reload
+                if (res.data.payment_status) {
+                    b.payment_status = res.data.payment_status;
+                }
+                if (res.data.status) {
+                    b.status = res.data.status;
+                }
+            })
+            .catch(() => { /* Silently ignore individual sync failures */ })
+    ));
+};
+
+onMounted(async () => {
+    await fetchBookings();
+    // Auto-sync any reservations that returned from a Xendit payment
+    // but whose webhook hasn't fired yet (common on localhost)
+    await autoSyncPendingPayments(bookings.value);
+});
 </script>
 
 <style scoped>

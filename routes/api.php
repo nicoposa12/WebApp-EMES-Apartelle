@@ -28,6 +28,8 @@ Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'me']);
     Route::post('/user/profile-photo', [AuthController::class, 'updateProfilePhoto']);
+    Route::put('/user/profile', [AuthController::class, 'updateProfile']);
+    Route::put('/user/change-password', [AuthController::class, 'changePassword']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/reservations/{id}/sync-payment', [ReservationController::class, 'syncPayment']);
 Route::apiResource('reservations', ReservationController::class);
@@ -87,6 +89,9 @@ Route::group(['prefix' => 'admin', 'middleware' => ['auth:sanctum']], function (
         Route::delete('/reviews/{id}/reply', [ReviewController::class, 'deleteReply']);
         Route::get('/disputes', [DisputeController::class, 'adminIndex']);
         Route::put('/disputes/{id}', [DisputeController::class, 'update']);
+        Route::get('/blocked-dates', [App\Http\Controllers\Api\BlockedDateController::class, 'index']);
+        Route::post('/blocked-dates', [App\Http\Controllers\Api\BlockedDateController::class, 'store']);
+        Route::delete('/blocked-dates/{id}', [App\Http\Controllers\Api\BlockedDateController::class, 'destroy']);
     });
 
     // strictly Admin-only operations

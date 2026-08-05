@@ -21,14 +21,35 @@ class RoomController extends Controller
         $dates = Reservation::where('room_id', $id)
             ->whereIn('status', ['pending', 'confirmed', 'checked-in'])
             ->where('check_out', '>=', now())
-            ->get(['check_in', 'check_out']);
+            ->get(['check_in', 'check_out'])
+            ->map(function ($res) {
+                return [
+                    'check_in' => $res->check_in,
+                    'check_out' => $res->check_out,
+                    'type' => 'booked',
+                ];
+            })
+            ->toArray();
 
-        return response()->json($dates);
+        // Add blocked dates (either specific to this room or global)
+        $blocked = \App\Models\BlockedDate::where(function ($q) use ($id) {
+                $q->where('room_id', $id)
+                  ->orWhereNull('room_id');
+            })
+            ->where('end_date', '>=', now())
+            ->get(['start_date as check_in', 'end_date as check_out'])
+            ->map(function ($block) {
+                return [
+                    'check_in' => $block->check_in,
+                    'check_out' => $block->check_out,
+                    'type' => 'blocked',
+                ];
+            })
+            ->toArray();
+
+        return response()->json(array_merge($dates, $blocked));
     }
 
-    /**
-     * Get dates where no rooms are available.
-     */
     /**
      * Get dates where no rooms are available.
      * Cached for 2 minutes to reduce query load.
@@ -36,9 +57,42 @@ class RoomController extends Controller
     public function allBookedDates()
     {
         $reservations = Cache::remember('all_booked_dates', 120, function () {
-            return Reservation::whereIn('status', ['pending', 'confirmed', 'checked-in'])
+            $resData = Reservation::whereIn('status', ['pending', 'confirmed', 'checked-in'])
                 ->where('check_out', '>=', now())
-                ->get(['room_id', 'check_in', 'check_out']);
+                ->get(['room_id', 'check_in', 'check_out'])
+                ->map(function ($res) {
+                    return [
+                        'room_id' => $res->room_id,
+                        'check_in' => $res->check_in,
+                        'check_out' => $res->check_out,
+                    ];
+                })
+                ->toArray();
+
+            // Fetch blocked dates
+            $blocked = \App\Models\BlockedDate::where('end_date', '>=', now())->get();
+            $rooms = Room::pluck('id')->toArray();
+
+            foreach ($blocked as $block) {
+                if ($block->room_id) {
+                    $resData[] = [
+                        'room_id' => $block->room_id,
+                        'check_in' => $block->start_date,
+                        'check_out' => $block->end_date,
+                    ];
+                } else {
+                    // Global block: treat it as blocked for every single room in the database
+                    foreach ($rooms as $roomId) {
+                        $resData[] = [
+                            'room_id' => $roomId,
+                            'check_in' => $block->start_date,
+                            'check_out' => $block->end_date,
+                        ];
+                    }
+                }
+            }
+
+            return $resData;
         });
 
         return response()->json($reservations);
@@ -71,6 +125,17 @@ class RoomController extends Controller
             $checkIn = \Carbon\Carbon::parse($request->check_in);
             $checkOut = \Carbon\Carbon::parse($request->check_out);
 
+            // 1. Check if there is a global block (room_id is null) during this period
+            $isGloballyBlocked = \App\Models\BlockedDate::whereNull('room_id')
+                ->where('start_date', '<', $checkOut)
+                ->where('end_date', '>', $checkIn)
+                ->exists();
+
+            if ($isGloballyBlocked) {
+                return response()->json([]); // No rooms available globally
+            }
+
+            // 2. Filter out rooms that have active reservations during this period
             $query->whereDoesntHave('reservations', function ($q) use ($checkIn, $checkOut) {
                 // Rule: Pending, Confirmed, and Checked-in reservations block dates
                 $q->whereIn('status', ['pending', 'confirmed', 'checked-in'])
@@ -78,6 +143,12 @@ class RoomController extends Controller
                       $subQ->where('check_in', '<', $checkOut)
                            ->where('check_out', '>', $checkIn);
                   });
+            });
+
+            // 3. Filter out rooms that are individually blocked during this period
+            $query->whereDoesntHave('blockedDates', function ($q) use ($checkIn, $checkOut) {
+                $q->where('start_date', '<', $checkOut)
+                  ->where('end_date', '>', $checkIn);
             });
         }
 

@@ -25,11 +25,11 @@ class XenditService
     {
         try {
             $payload = [
-                'external_id' => (string) $data['reservation_id'],
-                'description' => 'Reservation: ' . $data['room_type'] . ' - Room #' . $data['room_number'],
+                'external_id' => isset($data['external_id']) ? (string) $data['external_id'] : (string) $data['reservation_id'],
+                'description' => $data['description'] ?? ('Reservation: ' . $data['room_type'] . ' - Room #' . $data['room_number']),
                 'amount' => (float) $data['total_amount'],
                 'currency' => 'PHP',
-                'success_redirect_url' => env('XENDIT_SUCCESS_URL', env('APP_URL') . '/booking/success') . '?res_id=' . $data['reservation_id'],
+                'success_redirect_url' => $data['success_redirect_url'] ?? (env('XENDIT_SUCCESS_URL', env('APP_URL') . '/booking/success') . '?res_id=' . $data['reservation_id']),
                 'failure_redirect_url' => env('XENDIT_CANCEL_URL', env('APP_URL') . '/rooms'),
                 'customer' => [
                     'given_names' => $data['customer_name'] ?? 'Guest',
@@ -48,7 +48,7 @@ class XenditService
                 'fees' => [],
                 'items' => [
                     [
-                        'name' => $data['room_type'] . ' - Room #' . $data['room_number'],
+                        'name' => $data['item_name'] ?? ($data['room_type'] . ' - Room #' . $data['room_number']),
                         'quantity' => 1,
                         'price' => (float) $data['total_amount']
                     ]

@@ -42,4 +42,9 @@ class Room extends Model
     {
         return $this->hasMany(Review::class);
     }
+
+    public function blockedDates()
+    {
+        return $this->hasMany(BlockedDate::class);
+    }
 }
